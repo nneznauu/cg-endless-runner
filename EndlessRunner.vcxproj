@@ -62,6 +62,12 @@
     <ClCompile Include="$(RunnerSourceDir)\Player.cpp" />
     <ClCompile Include="$(RunnerSourceDir)\Renderer.cpp" />
     <ClCompile Include="$(RunnerSourceDir)\Shader.cpp" />
+    <ClCompile Include="$(RunnerSourceDir)\Game.cpp" />
+    <ClCompile Include="$(RunnerSourceDir)\Obstacles.cpp" />
+    <ClCompile Include="$(RunnerSourceDir)\SmokeTest.cpp" />
+    <ClInclude Include="$(RunnerSourceDir)\Game.h" />
+    <ClInclude Include="$(RunnerSourceDir)\Obstacles.h" />
+    <ClInclude Include="$(RunnerSourceDir)\SmokeTest.h" />
     <ClInclude Include="$(RunnerSourceDir)\Camera.h" />
     <ClInclude Include="$(RunnerSourceDir)\GlDiagnostics.h" />
     <ClInclude Include="$(RunnerSourceDir)\Keyboard.h" />
@@ -79,6 +85,8 @@
     <None Include="$(RunnerShaderDir)\lit.frag" />
     <None Include="$(RunnerShaderDir)\hud.vert" />
     <None Include="$(RunnerShaderDir)\hud.frag" />
+    <None Include="$(RunnerShaderDir)\obstacles.vert" />
+    <None Include="$(RunnerShaderDir)\obstacles.frag" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />

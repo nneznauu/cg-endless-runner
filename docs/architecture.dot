@@ -1,0 +1,20 @@
+digraph Runner {
+  graph [rankdir=TB, bgcolor="white", pad="0.25", nodesep="0.35", ranksep="0.55", fontname="DejaVu Sans", label="Daniyar's obstacle pipeline and team integration", labelloc=t, fontsize=20];
+  node [shape=box, style="rounded,filled", fillcolor="#e9f5f2", color="#268b7b", fontname="DejaVu Sans", fontsize=12, margin="0.18,0.12"];
+  edge [color="#526773", fontname="DejaVu Sans", fontsize=10];
+  input [label="main.cpp / GLFW\ninput + delta time"];
+  game [label="Game.cpp / CPU\nstate, distance, bounded Z\nfixed obstacle pool"];
+  upload [label="Obstacles::upload / CPU\nmodel = translate * scale\nground contact from callback"];
+  terrain [label="Muhamedzhan / PENDING\nTerrain + Player + Camera\nCPU height sampler + height VS", fillcolor="#fff2db", color="#ba8731", style="rounded,filled,dashed"];
+  vbo [label="Instance VBO\nN column-major mat4\nattributes 2..5, divisor = 1"];
+  mesh [label="Shared cube VAO / VBO / EBO\n24 position-normal vertices\n36 indices"];
+  draw [label="ONE glDrawElementsInstanced\nper obstacle type", fillcolor="#c4ede4"];
+  vs [label="obstacles.vert / GPU\nP * V * model * position\ninverse-transpose normals"];
+  fs [label="Rasterization + obstacles.frag\nBlinn-Phong lighting + fog\ndepth test / back-face culling"];
+  out [label="Color + depth framebuffer\nHUD: distance, state, draw count"];
+  input -> game -> upload -> vbo -> draw -> vs -> fs -> out;
+  mesh -> draw;
+  terrain -> upload [style=dashed,label="height(x,z) / currently 0"];
+  terrain -> vs [style=dashed,label="shared view + projection"];
+  game -> out [label="score / status"];
+}

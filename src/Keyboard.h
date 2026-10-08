@@ -15,7 +15,7 @@ template <typename OnPress>
 bool pollWindowsLetterKeys(bool (&held)[256], OnPress onPress) {
     const HWND active = GetActiveWindow();
     const bool focused = active != nullptr && active == GetForegroundWindow();
-    constexpr unsigned char controls[]{ 'a', 'd', 'p', 'r', 't', 'c', 'v', 'h', 'j', 'l' };
+    constexpr unsigned char controls[]{ 'a', 'd', 'p', 'r', 't', 'i', 'c', 'v', 'h', 'j', 'l' };
     for (const unsigned char key : controls) {
         const int virtualKey = 'A' + (key - 'a');
         const bool down = focused && (GetAsyncKeyState(virtualKey) & 0x8000) != 0;

@@ -14,6 +14,8 @@
 #include "Renderer.h"
 #include "GlDiagnostics.h"
 #include "Keyboard.h"
+#include "Game.h"
+#include "SmokeTest.h"
 
 #include <algorithm>
 #include <chrono>
@@ -31,16 +33,15 @@ namespace {
     Player player;
     Camera camera;
     Renderer renderer;
+    runner::Game game;
     int windowWidth = 1280, windowHeight = 720;
     bool held[256]{};
     bool arrows[4]{};
-    bool paused = false, displaced = true, help = true, wireframe = false;
+    bool displaced = true, help = true, wireframe = false, instanced = true;
     bool graphicsReady = false;
     bool runtimeFailed = false;
     bool firstFrame = true;
     float phase = 0.0f, lightAngle = 0.8f;
-    constexpr float runSpeed = 8.0f;
-    double distanceTravelled = 0.0;
     double fpsSeconds = 0.0;
     int fpsFrames = 0, fps = 0;
     auto lastFrame = std::chrono::steady_clock::now();
@@ -69,19 +70,24 @@ namespace {
 
     std::vector<std::string> statusText() {
         std::ostringstream score;
-        score << "DISTANCE: " << std::fixed << std::setprecision(0) << distanceTravelled
+        score << "DISTANCE: " << std::fixed << std::setprecision(0) << game.distance()
             << " M | FPS: " << fps;
         std::vector<std::string> lines{
-            "ENDLESS RUNNER | TOPIC 4 | STAGE 1",
+            "ENDLESS RUNNER | TOPIC 4 | STAGE 1 INTEGRATED",
             "MUKHAMEJAN / DANIYAR",
             score.str(),
             std::string("HEIGHT MAP: ") + (displaced ? "ON" : "OFF")
                 + " | CAMERA: " + (camera.orbit ? "ORBIT" : "FOLLOW")
-                + " | " + (paused ? "PAUSED" : "RUNNING")
+                + " | " + runner::stateName(game.state()),
+            std::string("INSTANCING: ") + (instanced ? "ON" : "OFF")
+                + " | VISIBLE: " + std::to_string(renderer.obstacleCount())
+                + " / " + std::to_string(game.obstacles().size())
+                + " | DRAWS: " + std::to_string(instanced ? (renderer.obstacleCount() ? 1 : 0) : renderer.obstacleCount()),
+            "STAGE 1: OBSTACLE COLLISION / GAME OVER NOT IMPLEMENTED"
         };
         if (help) {
             lines.push_back("SPACE: JUMP | A/D: MOVE | P: PAUSE | R: RESET");
-            lines.push_back("T: HEIGHT MAP | C: CAMERA | V: WIREFRAME");
+            lines.push_back("T: HEIGHT MAP | I: INSTANCING | C: CAMERA | V: WIREFRAME");
             lines.push_back("ARROWS: ORBIT | WHEEL: ZOOM | J/L: LIGHT");
             lines.push_back("H: HELP | ESC: EXIT");
         }
@@ -91,8 +97,9 @@ namespace {
 
     void display() {
         try {
+            renderer.updateObstacles(game, terrain, displaced);
             renderer.draw(windowWidth, windowHeight, camera, player, phase, displaced,
-                lightAngle, wireframe, statusText());
+                lightAngle, wireframe, statusText(), instanced);
 #ifndef NDEBUG
             checkGraphics("frame rendering");
 #else
@@ -117,6 +124,13 @@ namespace {
 
     void performKeyAction(unsigned char key);
 
+    void simulate(float dt, float move) {
+        if (game.state() != runner::RunState::Running) return;
+        game.update(dt);
+        phase = static_cast<float>(game.groundPhase());
+        player.update(dt, move, terrain, phase, displaced);
+    }
+
     void idle() {
 #ifdef _WIN32
         if (!pollWindowsLetterKeys(held, performKeyAction)) {
@@ -129,13 +143,8 @@ namespace {
         const double actualDt = std::chrono::duration<double>(now - lastFrame).count();
         lastFrame = now;
         const float dt = static_cast<float>(std::clamp(actualDt, 0.0, 0.05));
-        if (!paused) {
-            distanceTravelled += runSpeed * dt;
-            // Keep shader coordinates bounded, even after a very long run.
-            phase = std::fmod(phase + runSpeed * dt, HeightField::period);
-            const float move = (held['d'] ? 1.0f : 0.0f) - (held['a'] ? 1.0f : 0.0f);
-            player.update(dt, move, terrain, phase, displaced);
-        }
+        const float move = (held['d'] ? 1.0f : 0.0f) - (held['a'] ? 1.0f : 0.0f);
+        simulate(dt, move);
         lightAngle += ((held['l'] ? 1.0f : 0.0f) - (held['j'] ? 1.0f : 0.0f)) * dt;
         lightAngle = std::fmod(lightAngle, 6.283185307f);
         camera.update(dt, player, (arrows[1] ? 1.0f : 0.0f) - (arrows[0] ? 1.0f : 0.0f),
@@ -170,8 +179,9 @@ namespace {
     void performKeyAction(unsigned char key) {
         switch (key) {
         case 27: glutLeaveMainLoop(); break;
-        case ' ': if (!paused) player.jump(); break;
-        case 'p': paused = !paused; break;
+        case ' ': if (game.state() == runner::RunState::Running) player.jump(); break;
+        case 'p': game.togglePause(); break;
+        case 'i': instanced = !instanced; break;
         case 't':
             displaced = !displaced;
             player.update(0.0f, 0.0f, terrain, phase, displaced);
@@ -179,11 +189,14 @@ namespace {
         case 'c': camera.orbit = !camera.orbit; break;
         case 'v': wireframe = !wireframe; break;
         case 'h': help = !help; break;
-        case 'r':
+        case 'r': {
+            const bool wasPaused = game.state() == runner::RunState::Paused;
+            game.reset(); game.startOrResume();
+            if (wasPaused) game.togglePause();
             phase = 0.0f;
-            distanceTravelled = 0.0;
             player.reset(terrain, phase, displaced);
             break;
+        }
         default: break;
         }
     }
@@ -216,6 +229,9 @@ namespace {
 
 int main(int argc, char** argv) {
     try {
+        const auto options = parseRunOptions(argc, argv);
+        game = runner::Game(options.instances);
+        game.startOrResume();
         glutInit(&argc, argv);
         glutInitContextVersion(3, 3);
         glutInitContextProfile(GLUT_CORE_PROFILE);
@@ -236,8 +252,18 @@ int main(int argc, char** argv) {
         camera.update(0.0f, player, 0.0f, 0.0f,
             terrain.surfaceHeight(player.x, 0.0f, phase, displaced));
         reshape(windowWidth, windowHeight);
+        renderer.updateObstacles(game, terrain, displaced);
         for (const auto& line : statusText()) std::cout << line << '\n';
-        std::cout << "Stage 1: terrain/player prototype. Obstacles and game-over are pending.\n";
+        std::cout << "Stage 1 integrated: height map, player and instanced obstacles. Obstacle collisions/game-over are pending.\n";
+        if (options.smoke || options.benchmark) {
+            // FreeGLUT needs a display callback while processing resize events.
+            glutDisplayFunc(display);
+            glutReshapeFunc(reshape);
+            runValidation(options, renderer, terrain, player, camera, game, displaced, instanced,
+                simulate, performKeyAction, statusText);
+            close(); glutDestroyWindow(glutGetWindow());
+            return 0;
+        }
         glutDisplayFunc(display);
         glutReshapeFunc(reshape);
         glutKeyboardFunc(keyboard);

@@ -4,4 +4,4 @@
 #include <filesystem>
 
 GLuint loadProgram(const std::filesystem::path& vertexFile,
-    const std::filesystem::path& fragmentFile);
+    const std::filesystem::path& fragmentFile, const char* feedbackVarying = nullptr);
