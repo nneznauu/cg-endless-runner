@@ -6,6 +6,7 @@
 #include <array>
 #include <cctype>
 #include <cstddef>
+#include <cmath>
 #include <stdexcept>
 #include <vector>
 
@@ -80,9 +81,11 @@ namespace {
 
 void Renderer::initialize(const std::filesystem::path& root, const HeightField& terrain) {
     checkGraphics("application initialization entry");
-    terrainProgram = loadProgram(root / "shaders/terrain.vert", root / "shaders/lit.frag");
+    terrainProgram = loadProgram(root / "shaders/terrain.vert", root / "shaders/lit.frag", "worldPosition");
     playerProgram = loadProgram(root / "shaders/player.vert", root / "shaders/lit.frag");
     hudProgram = loadProgram(root / "shaders/hud.vert", root / "shaders/hud.frag");
+    obstacleProgram = loadProgram(root / "shaders/obstacles.vert", root / "shaders/obstacles.frag");
+    obstacles.initialize();
     checkGraphics("shader program creation");
 
     std::vector<GroundVertex> vertices;
@@ -104,6 +107,7 @@ void Renderer::initialize(const std::filesystem::path& root, const HeightField& 
         }
     }
     terrainIndexCount = static_cast<GLsizei>(indices.size());
+    terrainVertexCount = static_cast<GLsizei>(vertices.size());
     glGenVertexArrays(1, &terrainVao);
     glGenBuffers(1, &terrainVbo);
     glGenBuffers(1, &terrainEbo);
@@ -183,7 +187,7 @@ void Renderer::initialize(const std::filesystem::path& root, const HeightField& 
 
 void Renderer::draw(int width, int height, const Camera& camera, const Player& player,
     float phase, bool displaced, float lightAngle, bool wireframe,
-    const std::vector<std::string>& hud) {
+    const std::vector<std::string>& hud, bool instanced, bool showObstacles) {
     glClearColor(0.055f, 0.085f, 0.14f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     const glm::mat4 view = camera.view();
@@ -222,8 +226,14 @@ void Renderer::draw(int width, int height, const Camera& camera, const Player& p
     glUniform1i(glGetUniformLocation(playerProgram, "groundPass"), 0);
     glBindVertexArray(playerVao);
     glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, nullptr);
+    glUseProgram(obstacleProgram);
+    matrix(obstacleProgram, "uViewProjection", projection * view);
+    vector(obstacleProgram, "uEye", camera.eye);
+    vector(obstacleProgram, "uLightDirection", light);
+    vector(obstacleProgram, "uColor", glm::vec3(0.20f, 0.72f, 0.78f));
+    obstacleCalls = showObstacles ? obstacles.draw(obstacleProgram, instanced) : 0;
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    drawText(width, height, hud);
+    if (!hud.empty()) drawText(width, height, hud);
     glBindVertexArray(0);
 }
 
@@ -264,7 +274,58 @@ void Renderer::drawText(int width, int height, const std::vector<std::string>& l
     glEnable(GL_DEPTH_TEST);
 }
 
+void Renderer::updateObstacles(const runner::Game& game, const HeightField& terrain, bool displaced) {
+    // Never draw boxes beyond the mesh where surfaceHeight would clamp to its edge.
+    std::vector<runner::Obstacle> visible;
+    for (const auto& o : game.obstacles()) {
+        if (o.z - o.depth * 0.5f >= HeightField::farZ
+            && o.z + o.depth * 0.5f <= HeightField::nearZ) visible.push_back(o);
+    }
+    obstacles.upload(visible, [&](float x, float z) {
+        return terrain.surfaceHeight(x, z, static_cast<float>(game.groundPhase()), displaced);
+    });
+}
+
+void Renderer::validateTerrainSampling(const HeightField& terrain, float phase, bool displaced) {
+    // Capture positions from the actual terrain VS, not a duplicate test shader.
+    glUseProgram(terrainProgram);
+    scalar(terrainProgram, "heightScale", displaced ? HeightField::amplitude : 0.0f);
+    scalar(terrainProgram, "terrainWidth", HeightField::width);
+    scalar(terrainProgram, "terrainPeriod", HeightField::period);
+    scalar(terrainProgram, "scrollPhase", phase);
+    scalar(terrainProgram, "normalStep", HeightField::gridStep);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, heightTexture);
+    glUniform1i(glGetUniformLocation(terrainProgram, "heightMap"), 0);
+    GLuint feedback = 0;
+    glGenBuffers(1, &feedback);
+    glBindBuffer(GL_TRANSFORM_FEEDBACK_BUFFER, feedback);
+    std::vector<float> positions(static_cast<std::size_t>(terrainVertexCount) * 3);
+    glBufferData(GL_TRANSFORM_FEEDBACK_BUFFER,
+        static_cast<GLsizeiptr>(positions.size() * sizeof(float)), nullptr, GL_STREAM_READ);
+    glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, feedback);
+    glBindVertexArray(terrainVao);
+    glEnable(GL_RASTERIZER_DISCARD);
+    glBeginTransformFeedback(GL_POINTS);
+    glDrawArrays(GL_POINTS, 0, terrainVertexCount);
+    glEndTransformFeedback();
+    glDisable(GL_RASTERIZER_DISCARD);
+    glGetBufferSubData(GL_TRANSFORM_FEEDBACK_BUFFER, 0,
+        static_cast<GLsizeiptr>(positions.size() * sizeof(float)), positions.data());
+    glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, 0);
+    glDeleteBuffers(1, &feedback);
+    checkGraphics("terrain transform-feedback validation");
+    for (std::size_t i = 0; i < positions.size(); i += 3) {
+        const float expected = terrain.sample(positions[i], positions[i+2], phase, displaced);
+        if (!std::isfinite(positions[i+1]) || std::abs(positions[i+1]-expected) > 0.0001f)
+            throw std::runtime_error("Terrain CPU/GPU height mismatch");
+    }
+}
+
 void Renderer::shutdown() {
+    obstacles.shutdown();
+    glDeleteProgram(obstacleProgram);
+    obstacleProgram = 0;
     const GLuint buffers[] = { terrainVbo,terrainEbo,playerVbo,playerEbo,hudVbo };
     const GLuint arrays[] = { terrainVao,playerVao,hudVao };
     glDeleteBuffers(5, buffers);

@@ -37,7 +37,7 @@ namespace {
 }
 
 GLuint loadProgram(const std::filesystem::path& vertexFile,
-    const std::filesystem::path& fragmentFile) {
+    const std::filesystem::path& fragmentFile, const char* feedbackVarying) {
     const GLuint vertex = compile(GL_VERTEX_SHADER, vertexFile);
     GLuint fragment = 0;
     try { fragment = compile(GL_FRAGMENT_SHADER, fragmentFile); }
@@ -45,6 +45,7 @@ GLuint loadProgram(const std::filesystem::path& vertexFile,
     const GLuint program = glCreateProgram();
     glAttachShader(program, vertex);
     glAttachShader(program, fragment);
+    if (feedbackVarying) glTransformFeedbackVaryings(program, 1, &feedbackVarying, GL_INTERLEAVED_ATTRIBS);
     glLinkProgram(program);
     glDeleteShader(vertex);
     glDeleteShader(fragment);
