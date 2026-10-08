@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <!-- Prefer dependencies stored beside the project, if provided. -->
+    <GladRoot Condition="'$(GladRoot)'=='' and Exists('$(ProjectDir)external\glad\include\glad\glad.h')">$(ProjectDir)external\glad</GladRoot>
+    <GlmRoot Condition="'$(GlmRoot)'=='' and Exists('$(ProjectDir)external\glm\glm\glm.hpp')">$(ProjectDir)external\glm</GlmRoot>
+    <FreeglutRoot Condition="'$(FreeglutRoot)'=='' and Exists('$(ProjectDir)external\freeglut\include\GL\freeglut.h')">$(ProjectDir)external\freeglut</FreeglutRoot>
+    <!-- Defaults match the paths in the supplied Graphics.vcxproj. -->
+    <GladRoot Condition="'$(GladRoot)'==''">$(USERPROFILE)\Desktop\glad</GladRoot>
+    <GlmRoot Condition="'$(GlmRoot)'==''">$(USERPROFILE)\Downloads\glm-1.0.3\glm</GlmRoot>
+    <FreeglutRoot Condition="'$(FreeglutRoot)'==''">$(USERPROFILE)\Downloads\freeglut-3.8.0\freeglut-3.8.0</FreeglutRoot>
+    <FreeglutLibDir Condition="'$(FreeglutLibDir)'==''">$(FreeglutRoot)\build\lib\Release</FreeglutLibDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(GladRoot)\include;$(GlmRoot);$(FreeglutRoot)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>NOMINMAX;FREEGLUT_LIB_PRAGMAS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>$(FreeglutLibDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>freeglut.lib;opengl32.lib;user32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+</Project>
