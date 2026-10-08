@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64"><Configuration>Debug</Configuration><Platform>x64</Platform></ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64"><Configuration>Release</Configuration><Platform>x64</Platform></ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>17.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{8311F32A-48DA-490A-9D2D-6C47B1C2E349}</ProjectGuid>
+    <RootNamespace>EndlessRunner</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'" Label="Configuration"><UseDebugLibraries>true</UseDebugLibraries></PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Release'" Label="Configuration"><UseDebugLibraries>false</UseDebugLibraries></PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings" />
+  <ImportGroup Label="Shared" />
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="Dependencies.props" />
+  </ImportGroup>
+  <PropertyGroup>
+    <RunnerSourceDir Condition="Exists('$(MSBuildProjectDirectory)\src\main.cpp')">$(MSBuildProjectDirectory)\src</RunnerSourceDir>
+    <RunnerSourceDir Condition="'$(RunnerSourceDir)'==''">$(MSBuildProjectDirectory)</RunnerSourceDir>
+    <RunnerShaderDir Condition="Exists('$(MSBuildProjectDirectory)\shaders\terrain.vert')">$(MSBuildProjectDirectory)\shaders</RunnerShaderDir>
+    <RunnerShaderDir Condition="'$(RunnerShaderDir)'==''">$(MSBuildProjectDirectory)</RunnerShaderDir>
+    <OutDir>$(ProjectDir)bin\$(Configuration)\</OutDir>
+    <IntDir>$(ProjectDir)obj\$(Configuration)\</IntDir>
+    <TargetName>EndlessRunner</TargetName>
+    <LocalDebuggerWorkingDirectory>$(ProjectDir)</LocalDebuggerWorkingDirectory>
+    <LocalDebuggerEnvironment>PATH=$(FreeglutRoot)\build\bin\Release;$(FreeglutRoot)\build\bin;%PATH%</LocalDebuggerEnvironment>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <WarningLevel>Level4</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <PreprocessorDefinitions>_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link><SubSystem>Console</SubSystem><GenerateDebugInformation>true</GenerateDebugInformation></Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
+    <ClCompile><Optimization>Disabled</Optimization><PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions><RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary></ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
+    <ClCompile><Optimization>MaxSpeed</Optimization><PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions><RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary></ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="$(GladRoot)\src\glad.c" />
+    <ClCompile Include="$(RunnerSourceDir)\main.cpp" />
+    <ClCompile Include="$(RunnerSourceDir)\HeightField.cpp" />
+    <ClCompile Include="$(RunnerSourceDir)\Player.cpp" />
+    <ClCompile Include="$(RunnerSourceDir)\Renderer.cpp" />
+    <ClCompile Include="$(RunnerSourceDir)\Shader.cpp" />
+    <ClInclude Include="$(RunnerSourceDir)\Camera.h" />
+    <ClInclude Include="$(RunnerSourceDir)\GlDiagnostics.h" />
+    <ClInclude Include="$(RunnerSourceDir)\Keyboard.h" />
+    <ClInclude Include="$(RunnerSourceDir)\HeightField.h" />
+    <ClInclude Include="$(RunnerSourceDir)\Player.h" />
+    <ClInclude Include="$(RunnerSourceDir)\Renderer.h" />
+    <ClInclude Include="$(RunnerSourceDir)\Shader.h" />
+    <None Include="Dependencies.props" />
+    <None Include="README.md" />
+    <None Include="START_HERE_RU.md" />
+    <None Include="SHADER_NOTES_RU.md" />
+    <None Include="INTEGRATION_DANIYAR.md" />
+    <None Include="$(RunnerShaderDir)\terrain.vert" />
+    <None Include="$(RunnerShaderDir)\player.vert" />
+    <None Include="$(RunnerShaderDir)\lit.frag" />
+    <None Include="$(RunnerShaderDir)\hud.vert" />
+    <None Include="$(RunnerShaderDir)\hud.frag" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets" />
+  <Target Name="CheckRunnerDependencies" BeforeTargets="PrepareForBuild">
+    <Error Condition="!Exists('$(GladRoot)\include\glad\glad.h')" Text="GLAD header missing. Set GladRoot in Dependencies.props to the folder containing include and src." />
+    <Error Condition="!Exists('$(GladRoot)\src\glad.c')" Text="glad.c missing. This project expects the GLAD 1 package used in your lab." />
+    <Error Condition="!Exists('$(GlmRoot)\glm\glm.hpp')" Text="GLM header missing. GlmRoot must be the folder containing glm\glm.hpp." />
+    <Error Condition="!Exists('$(FreeglutRoot)\include\GL\freeglut.h')" Text="FreeGLUT header missing. Set FreeglutRoot in Dependencies.props." />
+    <Error Condition="!Exists('$(FreeglutLibDir)\freeglut.lib')" Text="freeglut.lib missing. Set FreeglutLibDir to your x64 Release library folder." />
+    <Error Condition="!Exists('%(ClCompile.FullPath)')" Text="Source file missing: %(ClCompile.FullPath). Extract the complete ZIP, including the src folder." />
+  </Target>
+  <Target Name="CopyRunnerRuntimeFiles" AfterTargets="Build">
+    <ItemGroup>
+      <RunnerShader Include="$(RunnerShaderDir)\*.vert;$(RunnerShaderDir)\*.frag" />
+      <GlutRuntime Include="$(FreeglutRoot)\build\bin\Release\freeglut.dll" Condition="Exists('$(FreeglutRoot)\build\bin\Release\freeglut.dll')" />
+      <GlutRuntime Include="$(FreeglutRoot)\build\bin\freeglut.dll" Condition="!Exists('$(FreeglutRoot)\build\bin\Release\freeglut.dll') and Exists('$(FreeglutRoot)\build\bin\freeglut.dll')" />
+      <GlutRuntime Include="$(FreeglutLibDir)\freeglut.dll" Condition="'@(GlutRuntime)'=='' and Exists('$(FreeglutLibDir)\freeglut.dll')" />
+    </ItemGroup>
+    <MakeDir Directories="$(OutDir)shaders" />
+    <Copy SourceFiles="@(RunnerShader)" DestinationFolder="$(OutDir)shaders" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(GlutRuntime)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" Condition="'@(GlutRuntime)'!=''" />
+    <Warning Condition="'@(GlutRuntime)'==''" Text="freeglut.dll was not found automatically. Copy your x64 Release freeglut.dll beside bin\$(Configuration)\EndlessRunner.exe." />
+  </Target>
+</Project>
