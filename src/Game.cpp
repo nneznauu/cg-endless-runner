@@ -17,7 +17,6 @@ void Game::reset() {
     recycled_ = 0;
     for (std::size_t i = 0; i < obstacles_.size(); ++i) {
         positions_[i] = -18.0 - 6.0 * static_cast<double>(i);
-        // Deterministic pattern makes screenshots and ON/OFF comparisons repeatable.
         const int lane = static_cast<int>((i * 7 + 1) % 3) - 1;
         obstacles_[i] = {3.2f * lane, static_cast<float>(positions_[i]),
                          1.55f, 1.2f + 0.35f * static_cast<float>(i % 3), 1.35f};
@@ -38,7 +37,6 @@ void Game::update(double dt) {
     for (std::size_t i = 0; i < positions_.size(); ++i) {
         double z = positions_[i] + travel;
         if (z > RecycleZ) {
-            // Handle multiple wraps, including long simulation steps.
             const double wraps = std::ceil((z - RecycleZ) / loopLength_);
             z -= wraps * loopLength_;
             recycled_ += static_cast<std::uint64_t>(wraps);
