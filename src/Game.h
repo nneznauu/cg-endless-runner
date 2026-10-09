@@ -7,15 +7,11 @@
 namespace runner {
 enum class RunState { Ready, Running, Paused };
 
-// Local right-handed coordinates: +Y up, -Z forward, +X right.
-// Ground contact is the bottom of each axis-aligned obstacle.
 struct Obstacle {
     float x, z;
     float width, height, depth;
 };
 
-// Daniyar: simulation, bounded obstacle coordinates and distance score.
-// No OpenGL dependency; the teammate's player/terrain can consume this state.
 class Game {
 public:
     explicit Game(std::size_t count = 96);
@@ -34,7 +30,6 @@ public:
     static constexpr double RecycleZ = 12.0;
 private:
     std::vector<Obstacle> obstacles_;
-    // Doubles retain sub-frame movement; floats are produced only for rendering.
     std::vector<double> positions_;
     RunState state_ = RunState::Ready;
     double distance_ = 0, groundPhase_ = 0, loopLength_ = 0;

@@ -7,8 +7,6 @@
 
 namespace runner {
 void Obstacles::initialize() {
-    // Each face has its own four vertices so its normal stays flat.
-    // u cross v = outward normal: all triangles are counter-clockwise.
     struct Vertex { glm::vec3 position, normal; };
     std::vector<Vertex> vertices;
     std::vector<unsigned int> indices;
@@ -29,12 +27,11 @@ void Obstacles::initialize() {
     glGenBuffers(1,&indices_); glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,indices_);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER,static_cast<GLsizeiptr>(indices.size()*sizeof(unsigned int)),indices.data(),GL_STATIC_DRAW);
     glGenBuffers(1,&instances_); glBindBuffer(GL_ARRAY_BUFFER,instances_);
-    // A mat4 occupies four attribute locations, one vec4 column each.
     static_assert(sizeof(glm::mat4)==16*sizeof(float), "Packed mat4 expected");
     for (GLuint col=0; col<4; ++col) {
         glEnableVertexAttribArray(2+col);
         glVertexAttribPointer(2+col,4,GL_FLOAT,GL_FALSE,sizeof(glm::mat4),reinterpret_cast<void*>(col*sizeof(glm::vec4)));
-        glVertexAttribDivisor(2+col,1); // advance once per INSTANCE, not per vertex
+        glVertexAttribDivisor(2+col,1);
     }
     glBindVertexArray(0);
 }
@@ -50,12 +47,12 @@ void Obstacles::upload(const std::vector<Obstacle>& obstacles, const GroundHeigh
         const float y = height(o.x,o.z);
         if (!std::isfinite(y)) throw std::runtime_error("Ground sampler returned non-finite height");
         glm::mat4 model = glm::translate(glm::mat4(1.0f),glm::vec3(o.x,y+o.height*0.5f,o.z));
-        model = glm::scale(model,glm::vec3(o.width,o.height,o.depth)); // M = T * S
+        model = glm::scale(model,glm::vec3(o.width,o.height,o.depth));
         transforms_.push_back(model);
     }
     glBindBuffer(GL_ARRAY_BUFFER,instances_);
     const auto bytes = static_cast<GLsizeiptr>(transforms_.size()*sizeof(glm::mat4));
-    glBufferData(GL_ARRAY_BUFFER,bytes,nullptr,GL_STREAM_DRAW); // orphan previous storage
+    glBufferData(GL_ARRAY_BUFFER,bytes,nullptr,GL_STREAM_DRAW);
     if (bytes) glBufferSubData(GL_ARRAY_BUFFER,0,bytes,transforms_.data());
 }
 std::size_t Obstacles::draw(GLuint program, bool instanced) const {
