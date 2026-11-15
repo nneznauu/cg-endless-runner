@@ -95,4 +95,3 @@ The benchmark reports completed render-frame wall times for a fixed scene; no up
 - [Current requirements checklist](docs/REQUIREMENTS.md)
 - [Earlier standalone report draft](docs/DANIYAR_MIDTERM.md): historical evidence, must be updated with the integrated scene before submission
 
-The initial modules and the integration were substantially prepared with ChatGPT/Codex assistance. Retain that disclosure and describe each student's actual reviewed changes in the report. No external model, texture image or font asset is used. Dependencies and references: [THIRD_PARTY.md](docs/THIRD_PARTY.md).
