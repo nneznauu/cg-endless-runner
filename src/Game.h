@@ -2,10 +2,13 @@
 #include "HeightField.h"
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <vector>
 
 namespace runner {
-enum class RunState { Ready, Running, Paused };
+enum class RunState { Ready, Running, Paused, GameOver };
+
+using GroundHeight = std::function<float(float, float)>;
 
 struct Obstacle {
     float x, z;
@@ -19,6 +22,8 @@ public:
     void startOrResume();
     void togglePause();
     void update(double dt);
+    bool collides(float playerX, float playerFeetY, const GroundHeight& height) const;
+    bool checkCollision(float playerX, float playerFeetY, const GroundHeight& height);
     RunState state() const { return state_; }
     double distance() const { return distance_; }
     double groundPhase() const { return groundPhase_; }
@@ -26,8 +31,11 @@ public:
     double loopLength() const { return loopLength_; }
     std::uint64_t recycled() const { return recycled_; }
     const std::vector<Obstacle>& obstacles() const { return obstacles_; }
+    static bool onTerrain(const Obstacle& o);
     static constexpr double GroundPeriod = HeightField::period;
     static constexpr double RecycleZ = 12.0;
+    static constexpr float PlayerWidth = 0.8f;
+    static constexpr float PlayerDepth = 0.8f;
 private:
     std::vector<Obstacle> obstacles_;
     std::vector<double> positions_;

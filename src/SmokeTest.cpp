@@ -71,6 +71,8 @@ void runValidation(const RunOptions& options, Renderer& renderer,
         renderer.draw(w,h,camera,player,phase,displaced,light,false,overlay?hud():std::vector<std::string>{},instanced,show);
         checkGraphics("integrated frame");
     };
+    auto toSafeLane=[&]() { while (player.x<1.5f) tick(1.0f/120.0f,1); };
+    toSafeLane();
     for (int i=0;i<60;++i) tick(1.0f/60.0f,0);
     if (options.smoke) {
         renderer.validateInstanceLayout();
@@ -122,18 +124,29 @@ void runValidation(const RunOptions& options, Renderer& renderer,
             "R must reset distance, phase and obstacles");
         require(player.x==0 && player.grounded && std::abs(player.feetY-terrain.surfaceHeight(0,0,0,displaced))<0.0001f,
             "R must reset player on terrain");
-        // Cross the 128 m wrap and several obstacle recycling events.
+        toSafeLane();
         for (int i=0;i<17*120;++i) tick(1.0f/120,0);
+        require(game.state()==runner::RunState::Running,"Player in the gap between lanes must not collide");
         require(game.groundPhase()<HeightField::period && game.recycled()>0,"Phase and obstacle recycling must stay bounded");
         frame(); renderer.validateTerrainSampling(terrain,static_cast<float>(game.groundPhase()),displaced);
         key('p'); key('r');
         require(game.state()==runner::RunState::Paused,"Reset must preserve pause");
-        key('p'); for(int i=0;i<120;++i) tick(1.0f/120,0); key('p');
+        key('p');
+        for(int i=0;i<4*120 && game.state()==runner::RunState::Running;++i) tick(1.0f/120,0);
+        require(game.state()==runner::RunState::GameOver,"Head-on obstacle must end the run");
+        const double crashDistance=game.distance(); const float crashZ=game.obstacles()[0].z;
+        tick(0.5f,1); key(' ');
+        require(game.distance()==crashDistance && game.obstacles()[0].z==crashZ && player.x==0 && player.grounded,
+            "Game over must freeze world, player and jump");
+        key('r');
+        require(game.state()==runner::RunState::Running && game.distance()==0,"R must start a new run after game over");
+        for(int i=0;i<120;++i) tick(1.0f/120,0);
+        key('p');
         frame(true,true);
         if(!options.screenshot.empty()) save(options.screenshot,1280,720,readPixels(1280,720));
         std::cout<<"PASS integrated GL smoke: 1 vs "<<count<<" obstacle draws, mismatched pixels="<<mismatches
             <<", visible obstacle pixels="<<visible
-            <<"; actual terrain VS matches CPU at 17297 vertices for 5 phase/toggle cases; P/R/T/I/C, jump/landing, movement, light, resize, bounded scrolling; no GL errors\n";
+            <<"; actual terrain VS matches CPU at 17297 vertices for 5 phase/toggle cases; P/R/T/I/C, jump/landing, movement, light, resize, bounded scrolling, collision/game over; no GL errors\n";
     }
     if(options.benchmark) {
         std::cout<<"mode,pool,visible,obstacle_draws,width,height,frames,frame_ms,fps\n";
@@ -141,7 +154,6 @@ void runValidation(const RunOptions& options, Renderer& renderer,
         for(int i=0;i<120;++i) tick(1.0f/120,0);
         for(bool mode:{true,false}) {
             instanced=mode;
-            // Use the same prepared buffers and scene; excludes update/upload/HUD.
             frame();
             auto render=[&]() { renderer.draw(1280,720,camera,player,static_cast<float>(game.groundPhase()),displaced,0.8f,false,{},mode); glFinish(); };
             for(int i=0;i<20;++i) render();

@@ -129,12 +129,14 @@ namespace {
         game.update(dt);
         phase = static_cast<float>(game.groundPhase());
         player.update(dt, move, terrain, phase, displaced);
+        game.checkCollision(player.x, player.feetY, [](float x, float z) {
+            return terrain.surfaceHeight(x, z, phase, displaced);
+        });
     }
 
     void idle() {
 #ifdef _WIN32
         if (!pollWindowsLetterKeys(held, performKeyAction)) {
-            // A release sent to another window must not leave a game key held.
             std::fill_n(arrows, 4, false);
             held[' '] = false;
         }
@@ -166,8 +168,6 @@ namespace {
 
     void keyboard(unsigned char input, int, int) {
 #ifdef _WIN32
-        // Letters are read in idle() by virtual-key code, avoiding both
-        // translated Cyrillic characters and duplicate English-key actions.
         if (input != ' ' && input != 27) return;
 #endif
         const unsigned char key = normalizeKey(input);
@@ -256,7 +256,6 @@ int main(int argc, char** argv) {
         for (const auto& line : statusText()) std::cout << line << '\n';
         std::cout << "Stage 1 integrated: height map, player and instanced obstacles. Obstacle collisions/game-over are pending.\n";
         if (options.smoke || options.benchmark) {
-            // FreeGLUT needs a display callback while processing resize events.
             glutDisplayFunc(display);
             glutReshapeFunc(reshape);
             runValidation(options, renderer, terrain, player, camera, game, displaced, instanced,
@@ -276,7 +275,6 @@ int main(int argc, char** argv) {
         glutIdleFunc(idle);
         lastFrame = std::chrono::steady_clock::now();
         glutMainLoop();
-        // freeglut invokes close() while the context still exists.
         return runtimeFailed ? 1 : 0;
     }
     catch (const std::exception& error) {
