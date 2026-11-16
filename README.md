@@ -58,15 +58,18 @@ The game starts in **Ready**: the world stands still until Space or Enter is pre
 | P | Pause/resume player, ground phase, obstacles and distance together (Running/Paused only) |
 | R | Reset player, obstacle pool, distance, phase and speed; Ready and Paused are kept, Running and Game Over start a new run |
 | T | Height-map displacement ON/OFF, including player and obstacle ground placement |
-| I | Instancing ON: one draw / OFF: one draw for each submitted obstacle |
+| I | Instancing ON: one draw per obstacle type (3) / OFF: one draw for each submitted obstacle |
 | C | Follow/orbit camera |
 | Arrows / mouse wheel | Orbit / zoom in orbit mode |
 | J / L | Rotate light |
 | V | Wireframe |
+| N | Enter the stress test (96 obstacles), then step up: 250, 500, 1000, 2500, 5000, 10000 |
+| M | Stress test: step the obstacle count down |
+| B | Leave the stress test and return to the normal game (96-obstacle pool, Ready) |
 | H | Help |
 | Esc | Exit |
 
-Windows letter polling includes **I** and preserves the teammate's Russian/English keyboard-layout handling. One shared clock advances from **8 m/s** up to **22 m/s**; terrain phase repeats after **128 m**. The pool contains 96 obstacles by default. Only boxes fully inside the terrain Z range are submitted, so the visible/submitted count varies; at the reference frame it is 25. The HUD's draw count covers obstacles only.
+Windows letter polling includes **I**, **N**, **M** and **B** and preserves the teammate's Russian/English keyboard-layout handling. One shared clock advances from **8 m/s** up to **22 m/s**; terrain phase repeats after **128 m**. In normal play obstacles come in rows every 16 m across three lanes; each row blocks one or two lanes with a low barrier (jumpable), crate or column, and always leaves a free lane. The layout is deterministic and gets denser with speed. Only boxes fully inside the terrain Z range are submitted, so the visible count varies. In the stress test (N/M/B or `--instances N`) all N obstacles are placed on the visible terrain, every one is submitted, and collisions are off. The HUD's draw count covers obstacles only.
 
 ## Validation / cloud
 

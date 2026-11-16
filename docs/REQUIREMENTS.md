@@ -10,7 +10,7 @@ Source: supplied `CG_Final_Project_Requirements_2026-2027.docx`, sections 2–4 
 | Ground is a height-map (displacement in vertex shader or tessellation if available); tiling or scrolling so the run is endless. | Done in Stage 1 | Real GL_R32F height texture sampled in terrain VS, period 128 m. |
 | Obstacles drawn with GPU instancing (one draw call per obstacle type, instance buffer with transforms). | Done in integrated scene | One cube type, pool 96, on-terrain filtering, mat4 buffer, one `glDrawElementsInstanced`; ON/OFF equivalence tested. |
 | Collision against height-map and instances; game-over and restart. | Partial | Player ground contact and reset exist. Obstacle collision and game-over are missing. |
-| Speed increases over time or by score; on-screen score. | Partial | Shared distance score implemented; speed fixed at 8 m/s. |
+| Speed increases over time or by score; on-screen score. | Done | Speed grows smoothly with running time from 8 m/s by 0.2 m/s² up to 22 m/s, frame-rate independent; score, best and speed are on the HUD. |
 
 Technical expectation: `glDrawElementsInstanced / equivalent` — done; `height texture sampled in VS` — done and checked against CPU; `looping world origin to avoid float precision drift` — player stays near origin, obstacles recycle and shared terrain phase stays in [0,128).
 
