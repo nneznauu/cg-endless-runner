@@ -36,7 +36,7 @@ The player moves horizontally with A/D and jumps with Space while grounded. Its 
 
 The final CMake path includes generated GLAD 1 loader files, downloads hash-verified source archives of GLM 1.0.1 and FreeGLUT 3.4.0, and builds FreeGLUT statically. It removes the dependency on library folders under a particular student's Desktop or Downloads directory. `scripts/build-windows.ps1` locates Visual Studio 2022, builds Release x64, runs CTest, and optionally runs the existing OpenGL validation and performance measurements.
 
-`scripts/measure-performance.ps1` records three ON/OFF repetitions of the fixed-scene benchmark. It saves raw logs, every sample, a median-time table, the active renderer and driver information, the executable hash, and the timing method. The benchmark measures rendering plus completion wait, excluding updates, uploads, HUD and buffer swapping. Normal gameplay FPS on the target lab computer must be reported separately.
+`scripts/measure-performance.ps1` records three ON/OFF repetitions of the fixed stress scene with 1000 submitted obstacles by default. The `-Instances` argument selects another count up to 10000. It saves raw logs, every sample, a median-time table, the active renderer and driver information, the executable hash, and the timing method. The benchmark measures rendering plus completion wait, excluding updates, uploads, HUD and buffer swapping. Normal gameplay FPS on the target lab computer must be reported separately.
 
 ## Evidence to insert after the final Windows run
 
