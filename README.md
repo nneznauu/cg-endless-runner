@@ -1,4 +1,4 @@
-# Endless runner — integrated Stage 1
+# Endless runner
 
 **Topic 4: Endless runner with instanced obstacles and a height-map ground.**
 Astana IT University, Computer Graphics Fundamentals, 2026–2027.
@@ -9,11 +9,11 @@ The teammate's complete `b461826` revision is integrated with Daniyar's obstacle
 
 ![Actual integrated build: terrain, player and instanced obstacles](docs/images/stage1-integrated.png)
 
-## Stage 1 status
+## Status
 
-Implemented: a real height texture sampled in the terrain vertex shader; endless scrolling; player movement/jump and contact with the visible terrain mesh; follow/orbit camera; lit objects; instanced obstacles placed by the same height sampler; bounded obstacle recycling; a shared distance, speed and pause/reset state; technique toggles and on-screen help.
+Implemented: a real height texture sampled in the terrain vertex shader; endless scrolling; player movement/jump and contact with the visible terrain mesh; follow/orbit camera; lit objects; instanced obstacles placed by the same height sampler; bounded obstacle recycling; technique toggles and on-screen help.
 
-**Obstacle collision, game-over and speed progression are still the next stage.** The player can currently pass through obstacles. Reset works but is not a fail/game-over system. This is a working midterm scene, not a complete final submission.
+Gameplay is complete: the game starts in Ready, collisions with obstacles end the run with a Game Over screen, Enter or R restarts immediately, and the best distance is kept for the session. Collision boxes follow the terrain height and a jump that clears an obstacle does not collide. Speed grows smoothly from 8 to 22 m/s, independent of frame rate. The HUD shows state, score, best, speed, FPS, technique toggles, visible obstacles and draw calls.
 
 ## Windows 10/11 — the teammate's existing setup
 
@@ -48,14 +48,15 @@ If your package manager names the FreeGLUT development package `libglut-dev`, us
 
 ## Controls
 
-The world starts running immediately, preserving the teammate's Stage 1 workflow.
+The game starts in **Ready**: the world stands still until Space or Enter is pressed. A collision switches to **Game Over** and freezes the world; Enter or R starts a new run.
 
 | Key | Action |
 |---|---|
-| Space | Jump when grounded |
+| Space | Start from Ready; jump when grounded while running |
+| Enter | Start from Ready; restart immediately after Game Over |
 | A / D | Move horizontally |
-| P | Pause/resume player, ground phase, obstacles and distance together |
-| R | Reset player, obstacle pool, distance and phase; preserve pause state |
+| P | Pause/resume player, ground phase, obstacles and distance together (Running/Paused only) |
+| R | Reset player, obstacle pool, distance, phase and speed; Ready and Paused are kept, Running and Game Over start a new run |
 | T | Height-map displacement ON/OFF, including player and obstacle ground placement |
 | I | Instancing ON: one draw / OFF: one draw for each submitted obstacle |
 | C | Follow/orbit camera |
@@ -65,7 +66,7 @@ The world starts running immediately, preserving the teammate's Stage 1 workflow
 | H | Help |
 | Esc | Exit |
 
-Windows letter polling includes **I** and preserves the teammate's Russian/English keyboard-layout handling. One shared clock advances at **8 m/s**; terrain phase repeats after **128 m**. The pool contains 96 obstacles by default. Only boxes fully inside the terrain Z range are submitted, so the visible/submitted count varies; at the reference frame it is 25. The HUD's draw count covers obstacles only.
+Windows letter polling includes **I** and preserves the teammate's Russian/English keyboard-layout handling. One shared clock advances from **8 m/s** up to **22 m/s**; terrain phase repeats after **128 m**. The pool contains 96 obstacles by default. Only boxes fully inside the terrain Z range are submitted, so the visible/submitted count varies; at the reference frame it is 25. The HUD's draw count covers obstacles only.
 
 ## Validation / cloud
 
