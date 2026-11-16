@@ -89,7 +89,7 @@ namespace {
                 + " | INSTANCING: " + (instanced ? "ON" : "OFF")
                 + " | CAMERA: " + (camera.orbit ? "ORBIT" : "FOLLOW"),
             "VISIBLE OBSTACLES: " + std::to_string(visible) + " / " + std::to_string(game.obstacles().size())
-                + " | DRAW CALLS: " + std::to_string(instanced ? (visible ? 1 : 0) : visible)
+                + " | DRAW CALLS: " + std::to_string(renderer.expectedObstacleDraws(instanced))
         };
         if (help) {
             lines.push_back("ENTER/SPACE: START | SPACE: JUMP | A/D: MOVE | P: PAUSE");
