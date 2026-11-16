@@ -139,6 +139,7 @@ namespace {
         if (!pollWindowsLetterKeys(held, performKeyAction)) {
             std::fill_n(arrows, 4, false);
             held[' '] = false;
+            held[13] = false;
         }
 #endif
         const auto now = std::chrono::steady_clock::now();
@@ -168,7 +169,7 @@ namespace {
 
     void keyboard(unsigned char input, int, int) {
 #ifdef _WIN32
-        if (input != ' ' && input != 27) return;
+        if (input != ' ' && input != 27 && input != 13) return;
 #endif
         const unsigned char key = normalizeKey(input);
         if (held[key]) return;
@@ -176,10 +177,26 @@ namespace {
         performKeyAction(key);
     }
 
+    void resetRun(runner::RunState next) {
+        if (next == runner::RunState::Ready) game.reset();
+        else game.restart();
+        if (next == runner::RunState::Paused) game.togglePause();
+        phase = 0.0f;
+        player.reset(terrain, phase, displaced);
+    }
+
     void performKeyAction(unsigned char key) {
+        const runner::RunState state = game.state();
         switch (key) {
         case 27: glutLeaveMainLoop(); break;
-        case ' ': if (game.state() == runner::RunState::Running) player.jump(); break;
+        case ' ':
+            if (state == runner::RunState::Ready) game.startOrResume();
+            else if (state == runner::RunState::Running) player.jump();
+            break;
+        case 13:
+            if (state == runner::RunState::Ready) game.startOrResume();
+            else if (state == runner::RunState::GameOver) resetRun(runner::RunState::Running);
+            break;
         case 'p': game.togglePause(); break;
         case 'i': instanced = !instanced; break;
         case 't':
@@ -189,21 +206,16 @@ namespace {
         case 'c': camera.orbit = !camera.orbit; break;
         case 'v': wireframe = !wireframe; break;
         case 'h': help = !help; break;
-        case 'r': {
-            const bool wasPaused = game.state() == runner::RunState::Paused;
-            game.reset(); game.startOrResume();
-            if (wasPaused) game.togglePause();
-            phase = 0.0f;
-            player.reset(terrain, phase, displaced);
+        case 'r':
+            resetRun(state == runner::RunState::GameOver ? runner::RunState::Running : state);
             break;
-        }
         default: break;
         }
     }
 
     void keyboardUp(unsigned char key, int, int) {
 #ifdef _WIN32
-        if (key != ' ' && key != 27) return;
+        if (key != ' ' && key != 27 && key != 13) return;
 #endif
         held[normalizeKey(key)] = false;
     }
@@ -231,7 +243,6 @@ int main(int argc, char** argv) {
     try {
         const auto options = parseRunOptions(argc, argv);
         game = runner::Game(options.instances);
-        game.startOrResume();
         glutInit(&argc, argv);
         glutInitContextVersion(3, 3);
         glutInitContextProfile(GLUT_CORE_PROFILE);

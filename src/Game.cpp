@@ -1,5 +1,6 @@
 #include "Game.h"
 #include "Player.h"
+#include <algorithm>
 #include <cmath>
 #include <stdexcept>
 
@@ -13,6 +14,7 @@ Game::Game(std::size_t count) {
     reset();
 }
 void Game::reset() {
+    best_ = std::max(best_, distance_);
     state_ = RunState::Ready;
     distance_ = groundPhase_ = 0;
     recycled_ = 0;
@@ -22,6 +24,10 @@ void Game::reset() {
         obstacles_[i] = {3.2f * lane, static_cast<float>(positions_[i]),
                          1.55f, 1.2f + 0.35f * static_cast<float>(i % 3), 1.35f};
     }
+}
+void Game::restart() {
+    reset();
+    state_ = RunState::Running;
 }
 void Game::startOrResume() {
     if (state_ == RunState::Ready || state_ == RunState::Paused) state_ = RunState::Running;
@@ -67,6 +73,7 @@ bool Game::collides(float playerX, float playerFeetY, const GroundHeight& height
 bool Game::checkCollision(float playerX, float playerFeetY, const GroundHeight& height) {
     if (state_ != RunState::Running || !collides(playerX, playerFeetY, height)) return false;
     state_ = RunState::GameOver;
+    best_ = std::max(best_, distance_);
     return true;
 }
 const char* stateName(RunState state) {
