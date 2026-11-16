@@ -16,7 +16,7 @@ Game::Game(std::size_t count) {
 void Game::reset() {
     best_ = std::max(best_, distance_);
     state_ = RunState::Ready;
-    distance_ = groundPhase_ = 0;
+    distance_ = elapsed_ = groundPhase_ = 0;
     recycled_ = 0;
     for (std::size_t i = 0; i < obstacles_.size(); ++i) {
         positions_[i] = -18.0 - 6.0 * static_cast<double>(i);
@@ -36,12 +36,24 @@ void Game::togglePause() {
     if (state_ == RunState::Running) state_ = RunState::Paused;
     else if (state_ == RunState::Paused) state_ = RunState::Running;
 }
+double Game::speedAt(double seconds) {
+    return std::min(MaxSpeed, BaseSpeed + Acceleration * std::max(seconds, 0.0));
+}
+double Game::distanceAt(double seconds) {
+    const double t = std::max(seconds, 0.0);
+    const double rampEnd = (MaxSpeed - BaseSpeed) / Acceleration;
+    if (t <= rampEnd) return BaseSpeed * t + 0.5 * Acceleration * t * t;
+    const double rampDistance = BaseSpeed * rampEnd + 0.5 * Acceleration * rampEnd * rampEnd;
+    return rampDistance + MaxSpeed * (t - rampEnd);
+}
 void Game::update(double dt) {
     if (!std::isfinite(dt) || dt < 0.0 || dt > 3600.0)
         throw std::invalid_argument("dt must be finite and in [0, 3600] seconds");
     if (state_ != RunState::Running) return;
-    const double travel = speed() * dt;
-    distance_ += travel;
+    elapsed_ += dt;
+    const double next = distanceAt(elapsed_);
+    const double travel = next - distance_;
+    distance_ = next;
     groundPhase_ = std::fmod(groundPhase_ + travel, GroundPeriod);
     for (std::size_t i = 0; i < positions_.size(); ++i) {
         double z = positions_[i] + travel;

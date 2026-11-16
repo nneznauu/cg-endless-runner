@@ -28,21 +28,28 @@ public:
     RunState state() const { return state_; }
     double distance() const { return distance_; }
     double best() const { return best_; }
+    double elapsed() const { return elapsed_; }
     double groundPhase() const { return groundPhase_; }
-    double speed() const { return 8.0; }
+    double speed() const { return state_ == RunState::Running ? speedAt(elapsed_) : 0.0; }
+    double currentSpeed() const { return speedAt(elapsed_); }
     double loopLength() const { return loopLength_; }
     std::uint64_t recycled() const { return recycled_; }
     const std::vector<Obstacle>& obstacles() const { return obstacles_; }
     static bool onTerrain(const Obstacle& o);
+    static double speedAt(double seconds);
+    static double distanceAt(double seconds);
     static constexpr double GroundPeriod = HeightField::period;
     static constexpr double RecycleZ = 12.0;
+    static constexpr double BaseSpeed = 8.0;
+    static constexpr double MaxSpeed = 22.0;
+    static constexpr double Acceleration = 0.2;
     static constexpr float PlayerWidth = 0.8f;
     static constexpr float PlayerDepth = 0.8f;
 private:
     std::vector<Obstacle> obstacles_;
     std::vector<double> positions_;
     RunState state_ = RunState::Ready;
-    double distance_ = 0, best_ = 0, groundPhase_ = 0, loopLength_ = 0;
+    double distance_ = 0, best_ = 0, elapsed_ = 0, groundPhase_ = 0, loopLength_ = 0;
     std::uint64_t recycled_ = 0;
 };
 const char* stateName(RunState state);
