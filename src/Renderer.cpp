@@ -254,7 +254,6 @@ void Renderer::draw(int width, int height, const Camera& camera, const Player& p
     matrix(obstacleProgram, "uViewProjection", projection * view);
     vector(obstacleProgram, "uEye", camera.eye);
     vector(obstacleProgram, "uLightDirection", light);
-    vector(obstacleProgram, "uColor", glm::vec3(0.20f, 0.72f, 0.78f));
     obstacleCalls = showObstacles ? obstacles.draw(obstacleProgram, instanced) : 0;
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     if (!hud.empty() || !banner.empty()) drawText(width, height, hud, banner);

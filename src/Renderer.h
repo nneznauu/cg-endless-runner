@@ -18,6 +18,8 @@ public:
         const std::vector<std::string>& banner = {});
     void updateObstacles(const runner::Game& game, const HeightField& terrain, bool displaced);
     std::size_t obstacleCount() const { return obstacles.count(); }
+    std::size_t obstacleCount(int type) const { return obstacles.count(type); }
+    std::size_t expectedObstacleDraws(bool instanced) const { return obstacles.drawCalls(instanced); }
     std::size_t obstacleDrawCalls() const { return obstacleCalls; }
     void validateInstanceLayout() const { obstacles.validateLayout(); }
     void validateTerrainSampling(const HeightField& terrain, float phase, bool displaced);

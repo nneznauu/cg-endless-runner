@@ -126,10 +126,12 @@ void runValidation(const RunOptions& options, Renderer& renderer,
         renderer.validateInstanceLayout();
         frame(); const auto on=readPixels(1280,720);
         const auto count=renderer.obstacleCount();
-        require(count>0 && renderer.obstacleDrawCalls()==1,"Expected one instanced draw");
+        const auto typeDraws=renderer.obstacleDrawCalls();
+        require(renderer.obstacleCount(0)>0 && renderer.obstacleCount(1)>0 && renderer.obstacleCount(2)>0,"All three obstacle types must be visible");
+        require(count>0 && typeDraws==3 && renderer.expectedObstacleDraws(true)==3,"Expected one instanced draw per obstacle type");
         key('i'); require(!instanced,"I must disable instancing");
         frame(); const auto off=readPixels(1280,720);
-        require(renderer.obstacleDrawCalls()==count,"Individual draw count must match uploaded instances");
+        require(renderer.obstacleDrawCalls()==count && renderer.expectedObstacleDraws(false)==count,"Individual draw count must match uploaded instances");
         const auto mismatches=difference(on,off);
         require(mismatches==0,"Instanced and individual scenes differ");
         frame(false); const auto visible=difference(on,readPixels(1280,720));
@@ -203,7 +205,7 @@ void runValidation(const RunOptions& options, Renderer& renderer,
         key('p');
         frame(true,true);
         if(!options.screenshot.empty()) save(options.screenshot,1280,720,readPixels(1280,720));
-        std::cout<<"PASS integrated GL smoke: 1 vs "<<count<<" obstacle draws, mismatched pixels="<<mismatches
+        std::cout<<"PASS integrated GL smoke: "<<typeDraws<<" vs "<<count<<" obstacle draws, mismatched pixels="<<mismatches
             <<", visible obstacle pixels="<<visible
             <<"; actual terrain VS matches CPU at 17297 vertices for 5 phase/toggle cases; P/R/T/I/C, jump/landing, autopilot lane changes, light, resize, bounded scrolling, collision/game over, Ready/Enter/R restart, best score, game over banner pixels="<<bannerPixels<<"; no GL errors\n";
     }

@@ -2,13 +2,13 @@
 in vec3 vWorld;
 in vec3 vNormal;
 in vec3 vLocal;
+in vec3 vColor;
 uniform vec3 uEye;
 uniform vec3 uLightDirection;
-uniform vec3 uColor;
 out vec4 fragColor;
 void main() {
     float band = 1.0 - smoothstep(0.045, 0.065, abs(vLocal.y - 0.15));
-    vec3 base = mix(uColor, vec3(0.98,0.84,0.61), band);
+    vec3 base = mix(vColor, vec3(0.98,0.84,0.61), band);
     vec3 n = normalize(vNormal);
     vec3 l = normalize(uLightDirection);
     vec3 v = normalize(uEye-vWorld);
