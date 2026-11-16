@@ -17,9 +17,25 @@ out vec3 surfaceColor;
 out vec2 groundCoordinate;
 
 float heightAt(vec2 xz) {
-    vec2 uv = vec2(xz.x / terrainWidth + 0.5,
-                   (xz.y - scrollPhase) / terrainPeriod);
-    return textureLod(heightMap, uv, 0.0).r * heightScale;
+    ivec2 size = textureSize(heightMap, 0);
+    vec2 uv = vec2(clamp(xz.x / terrainWidth + 0.5, 0.0, 1.0),
+                   fract((xz.y - scrollPhase) / terrainPeriod));
+    vec2 position = uv * vec2(size) - 0.5;
+    ivec2 base = ivec2(floor(position));
+    vec2 weight = fract(position);
+
+    int x0 = clamp(base.x, 0, size.x - 1);
+    int x1 = clamp(base.x + 1, 0, size.x - 1);
+    int z0 = (base.y + size.y) % size.y;
+    int z1 = (base.y + 1 + size.y) % size.y;
+
+    float a = texelFetch(heightMap, ivec2(x0, z0), 0).r;
+    float b = texelFetch(heightMap, ivec2(x1, z0), 0).r;
+    float c = texelFetch(heightMap, ivec2(x0, z1), 0).r;
+    float d = texelFetch(heightMap, ivec2(x1, z1), 0).r;
+    float lower = a + (b - a) * weight.x;
+    float upper = c + (d - c) * weight.x;
+    return heightScale * (lower + (upper - lower) * weight.y);
 }
 
 void main() {

@@ -10,7 +10,7 @@ The CPU creates a 128 by 128 single-channel height texture. The data uses period
 h(x,z,s)=A H\left(\frac{x}{24}+0.5,\frac{z-s}{128}\right).
 \]
 
-Here H is the linearly filtered height texture, s is the shared scroll phase, and A is 2.5 when displacement is enabled or 0 when disabled. T switches displacement and updates player and obstacle ground placement together. The texture clamps across the track and repeats along it.
+Here H is the bilinearly interpolated height texture, s is the shared scroll phase, and A is 2.5 when displacement is enabled or 0 when disabled. The shader fetches four texels with `texelFetch` and interpolates them explicitly using the same formula as the CPU. This avoids depending on the hardware texture filter's weight precision. T switches displacement and updates player and obstacle ground placement together. Sampling clamps across the track and repeats along it.
 
 The game keeps the player close to Z = 0, recycles obstacles and wraps s into the interval [0,128). Render coordinates therefore stay bounded during long runs. The distance score is stored separately and is not used as an unbounded float coordinate.
 
