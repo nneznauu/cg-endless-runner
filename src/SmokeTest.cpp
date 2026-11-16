@@ -62,21 +62,26 @@ void runValidation(const RunOptions& options, Renderer& renderer,
     bool& displaced, bool& instanced,
     const std::function<void(float,float)>& tick,
     const std::function<void(unsigned char)>& key,
-    const std::function<std::vector<std::string>()>& hud) {
+    const std::function<std::vector<std::string>()>& hud,
+    const std::function<std::vector<std::string>()>& banner) {
     auto frame=[&](bool show=true, bool overlay=false, float light=0.8f, int w=1280,int h=720) {
         const float phase=static_cast<float>(game.groundPhase());
         camera.update(0,player,0,0,terrain.surfaceHeight(player.x,0,phase,displaced));
         renderer.updateObstacles(game,terrain,displaced);
         glViewport(0,0,w,h);
-        renderer.draw(w,h,camera,player,phase,displaced,light,false,overlay?hud():std::vector<std::string>{},instanced,show);
+        renderer.draw(w,h,camera,player,phase,displaced,light,false,overlay?hud():std::vector<std::string>{},instanced,show,
+            overlay?banner():std::vector<std::string>{});
         checkGraphics("integrated frame");
     };
     auto toSafeLane=[&]() { while (player.x<1.5f) tick(1.0f/120.0f,1); };
     require(game.state()==runner::RunState::Ready,"Program must start in Ready");
+    require(!banner().empty() && banner()[0]=="ENDLESS RUNNER","Ready must show the start banner");
+    for (const auto& line:hud()) require(line.find("STAGE")==std::string::npos,"HUD must not show outdated stage text");
     tick(1.0f,1);
     require(game.distance()==0 && player.x==0,"Ready must keep the world and player still");
     key('r'); require(game.state()==runner::RunState::Ready,"R in Ready must keep Ready");
     key(13); require(game.state()==runner::RunState::Running && player.grounded,"Enter must start the run");
+    require(banner().empty(),"Running must hide the banner");
     toSafeLane();
     for (int i=0;i<60;++i) tick(1.0f/60.0f,0);
     if (options.smoke) {
@@ -144,7 +149,11 @@ void runValidation(const RunOptions& options, Renderer& renderer,
         require(game.state()==runner::RunState::GameOver && game.distance()==crashDistance && game.obstacles()[0].z==crashZ
             && player.x==0 && player.grounded,"Game over must freeze world, player, pause and jump");
         require(game.best()>=crashDistance,"Best score must keep the crash distance");
-        frame(true,true);
+        require(banner().size()>=4 && banner()[0]=="GAME OVER","Game over must show score, best and restart hint");
+        frame(); const auto plain=readPixels(1280,720);
+        renderer.draw(1280,720,camera,player,static_cast<float>(game.groundPhase()),displaced,0.8f,false,{},instanced,true,banner());
+        const auto bannerPixels=difference(plain,readPixels(1280,720));
+        require(bannerPixels>2000,"Game over banner must be drawn in the centre");
         key(13);
         require(game.state()==runner::RunState::Running && game.distance()==0 && game.obstacles()[0].z==-18
             && player.x==0,"Enter must start a new run after game over");
@@ -158,7 +167,7 @@ void runValidation(const RunOptions& options, Renderer& renderer,
         if(!options.screenshot.empty()) save(options.screenshot,1280,720,readPixels(1280,720));
         std::cout<<"PASS integrated GL smoke: 1 vs "<<count<<" obstacle draws, mismatched pixels="<<mismatches
             <<", visible obstacle pixels="<<visible
-            <<"; actual terrain VS matches CPU at 17297 vertices for 5 phase/toggle cases; P/R/T/I/C, jump/landing, movement, light, resize, bounded scrolling, collision/game over, Ready/Enter/R restart, best score; no GL errors\n";
+            <<"; actual terrain VS matches CPU at 17297 vertices for 5 phase/toggle cases; P/R/T/I/C, jump/landing, movement, light, resize, bounded scrolling, collision/game over, Ready/Enter/R restart, best score, game over banner pixels="<<bannerPixels<<"; no GL errors\n";
     }
     if(options.benchmark) {
         std::cout<<"mode,pool,visible,obstacle_draws,width,height,frames,frame_ms,fps\n";

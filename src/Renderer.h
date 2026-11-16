@@ -14,7 +14,8 @@ public:
     void initialize(const std::filesystem::path& root, const HeightField& terrain);
     void draw(int width, int height, const Camera& camera, const Player& player,
         float phase, bool displaced, float lightAngle, bool wireframe,
-        const std::vector<std::string>& hud, bool instanced = true, bool showObstacles = true);
+        const std::vector<std::string>& hud, bool instanced = true, bool showObstacles = true,
+        const std::vector<std::string>& banner = {});
     void updateObstacles(const runner::Game& game, const HeightField& terrain, bool displaced);
     std::size_t obstacleCount() const { return obstacles.count(); }
     std::size_t obstacleDrawCalls() const { return obstacleCalls; }
@@ -32,5 +33,6 @@ private:
     GLuint hudVao = 0, hudVbo = 0;
     GLsizei terrainIndexCount = 0;
     GLsizei terrainVertexCount = 0;
-    void drawText(int width, int height, const std::vector<std::string>& lines);
+    void drawText(int width, int height, const std::vector<std::string>& lines,
+        const std::vector<std::string>& banner);
 };
