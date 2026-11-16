@@ -99,9 +99,9 @@ bash scripts/cloud-run.sh --benchmark
 
 The rootless setup uses `/workspace/.runner-tools`, signed Debian packages and reproducible GLAD generation. `cloud-run.sh` starts and cleans up a private Xvfb display if needed and uses software Mesa. Existing checkouts are already isolated; do not create a Git worktree unless explicitly requested. Live display/application processes must be restarted in a new task.
 
-Desktop equivalents use `./build/endless_runner --smoke-test` or `--benchmark`. The smoke test exercises the real input-action handlers and terrain shader, compares instancing ON/OFF, checks CPU/GPU heights through transform feedback, and verifies jump/landing, pause/reset, toggles, phase wrapping and resize. CTest currently has **2 tests, 486 assertions**. [Current validation evidence](docs/STAGE1_INTEGRATED_VALIDATION.md).
+Desktop equivalents use `./build/endless_runner --smoke-test` or `--benchmark`. The smoke test exercises the real input-action handlers and terrain shader, compares instancing ON/OFF, checks CPU/GPU heights through transform feedback, and verifies jump/landing, pause/reset, toggles, phase wrapping and resize. CTest currently has **2 tests, 497 assertions**. [Current validation evidence](docs/FINAL_BUILD_VALIDATION.md).
 
-The benchmark reports completed render-frame wall times for a fixed scene; no update, instance upload, HUD or buffer swap is timed. It is not a lab-GPU certification. `--instances N` changes pool capacity; terrain-range culling means increasing the pool does not make all instances visible.
+The benchmark reports completed render-frame wall times for a fixed stress scene; no update, instance upload, HUD or buffer swap is timed. It is not a lab-GPU certification. `--instances N` selects N submitted stress instances. The PowerShell measurement helper defaults to 1000 instances and three ON/OFF repetitions; use `-Instances N` to change the count.
 
 ## Modules and documents
 
