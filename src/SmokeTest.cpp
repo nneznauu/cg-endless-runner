@@ -1,6 +1,7 @@
 #include "SmokeTest.h"
 #include "GlDiagnostics.h"
 #include <GL/freeglut.h>
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
@@ -16,6 +17,40 @@ std::vector<unsigned char> readPixels(int w, int h) {
     glPixelStorei(GL_PACK_ALIGNMENT,1); glReadBuffer(GL_BACK);
     glReadPixels(0,0,w,h,GL_RGB,GL_UNSIGNED_BYTE,pixels.data());
     checkGraphics("frame readback"); return pixels;
+}
+std::vector<std::vector<runner::Obstacle>> rowsAhead(const runner::Game& game) {
+    std::vector<std::vector<runner::Obstacle>> rows;
+    for (const auto& o:game.obstacles()) {
+        if (!runner::Game::onTerrain(o) || o.z-o.depth*0.5f>=runner::Game::PlayerDepth*0.5f) continue;
+        bool placed=false;
+        for (auto& row:rows) if (std::abs(row.front().z-o.z)<0.01f) { row.push_back(o); placed=true; }
+        if (!placed) rows.push_back({o});
+    }
+    std::sort(rows.begin(),rows.end(),[](const auto& a,const auto& b) { return a.front().z>b.front().z; });
+    return rows;
+}
+bool laneFree(const std::vector<runner::Obstacle>& row,int lane) {
+    for (const auto& o:row) if (o.x==runner::Game::laneX(lane)) return false;
+    return true;
+}
+float autopilotMove(const runner::Game& game,float x) {
+    const auto rows=rowsAhead(game);
+    if (rows.empty()) return 0;
+    float bestX=x,bestCost=1e9f;
+    for (int lane=0;lane<3;++lane) {
+        if (!laneFree(rows[0],lane)) continue;
+        const float laneX=runner::Game::laneX(lane);
+        float follow=0;
+        if (rows.size()>1) {
+            follow=1e9f;
+            for (int next=0;next<3;++next)
+                if (laneFree(rows[1],next)) follow=std::min(follow,std::abs(runner::Game::laneX(next)-laneX));
+        }
+        const float cost=std::abs(laneX-x)+0.9f*follow;
+        if (cost<bestCost) { bestCost=cost; bestX=laneX; }
+    }
+    if (std::abs(bestX-x)<0.05f) return 0;
+    return bestX>x?1.0f:-1.0f;
 }
 std::size_t difference(const std::vector<unsigned char>& a, const std::vector<unsigned char>& b) {
     require(a.size()==b.size(),"Frame sizes differ");
@@ -73,7 +108,10 @@ void runValidation(const RunOptions& options, Renderer& renderer,
             overlay?banner():std::vector<std::string>{});
         checkGraphics("integrated frame");
     };
-    auto toSafeLane=[&]() { while (player.x<1.5f) tick(1.0f/120.0f,1); };
+    auto drive=[&](float seconds) {
+        const int steps=static_cast<int>(std::lround(seconds*120.0f));
+        for (int i=0;i<steps;++i) tick(1.0f/120.0f,autopilotMove(game,player.x));
+    };
     require(game.state()==runner::RunState::Ready,"Program must start in Ready");
     require(!banner().empty() && banner()[0]=="ENDLESS RUNNER","Ready must show the start banner");
     for (const auto& line:hud()) require(line.find("STAGE")==std::string::npos,"HUD must not show outdated stage text");
@@ -82,8 +120,8 @@ void runValidation(const RunOptions& options, Renderer& renderer,
     key('r'); require(game.state()==runner::RunState::Ready,"R in Ready must keep Ready");
     key(13); require(game.state()==runner::RunState::Running && player.grounded,"Enter must start the run");
     require(banner().empty(),"Running must hide the banner");
-    toSafeLane();
-    for (int i=0;i<60;++i) tick(1.0f/60.0f,0);
+    drive(1.5f);
+    require(game.state()==runner::RunState::Running,"Autopilot must avoid the opening rows");
     if (options.smoke) {
         renderer.validateInstanceLayout();
         frame(); const auto on=readPixels(1280,720);
@@ -115,9 +153,10 @@ void runValidation(const RunOptions& options, Renderer& renderer,
             "Pause must freeze player and obstacles and block jumping");
         key('p'); key(' '); tick(1.0f/60,0);
         require(!player.grounded && player.feetY>terrain.surfaceHeight(player.x,0,static_cast<float>(game.groundPhase()),displaced),"Space must jump");
-        for (int i=0;i<180;++i) tick(1.0f/120,0);
-        require(player.grounded,"Player must land on the displaced mesh");
-        tick(0.05f,1); require(player.x>0,"Player horizontal input must move");
+        drive(1.5f);
+        require(player.grounded && game.state()==runner::RunState::Running,"Player must land on the displaced mesh");
+        const float beforeMove=player.x;
+        tick(0.05f,beforeMove>0?-1.0f:1.0f); require(player.x!=beforeMove,"Player horizontal input must move");
         frame(); require(difference(on,readPixels(1280,720))>100,"Moving world must change the frame");
         auto beforeLight=readPixels(1280,720); frame(true,false,2.8f);
         require(difference(beforeLight,readPixels(1280,720))>100,"Directional light must change shading");
@@ -130,20 +169,19 @@ void runValidation(const RunOptions& options, Renderer& renderer,
         frame(true,true,0.8f,960,540); readPixels(960,540);
         glutReshapeWindow(1280,720); glutMainLoopEvent();
         key('r');
-        require(game.distance()==0 && game.groundPhase()==0 && game.recycled()==0 && game.obstacles()[0].z==-18,
-            "R must reset distance, phase and obstacles");
+        require(game.distance()==0 && game.groundPhase()==0 && game.recycled()==0
+            && game.obstacles()[0].z==static_cast<float>(-runner::Game::FirstRowDistance),"R must reset distance, phase and obstacles");
         require(player.x==0 && player.grounded && std::abs(player.feetY-terrain.surfaceHeight(0,0,0,displaced))<0.0001f,
             "R must reset player on terrain");
-        toSafeLane();
-        for (int i=0;i<17*120;++i) tick(1.0f/120,0);
-        require(game.state()==runner::RunState::Running,"Player in the gap between lanes must not collide");
+        drive(17.0f);
+        require(game.state()==runner::RunState::Running,"Lane-changing autopilot must survive 17 seconds");
         require(game.groundPhase()<HeightField::period && game.recycled()>0,"Phase and obstacle recycling must stay bounded");
         frame(); renderer.validateTerrainSampling(terrain,static_cast<float>(game.groundPhase()),displaced);
         key('p'); key('r');
         require(game.state()==runner::RunState::Paused,"Reset must preserve pause");
         key('p');
-        for(int i=0;i<4*120 && game.state()==runner::RunState::Running;++i) tick(1.0f/120,0);
-        require(game.state()==runner::RunState::GameOver,"Head-on obstacle must end the run");
+        for(int i=0;i<30*120 && game.state()==runner::RunState::Running;++i) tick(1.0f/120,0);
+        require(game.state()==runner::RunState::GameOver,"Standing still must end the run");
         const double crashDistance=game.distance(); const float crashZ=game.obstacles()[0].z;
         tick(0.5f,1); key(' '); key('p');
         require(game.state()==runner::RunState::GameOver && game.distance()==crashDistance && game.obstacles()[0].z==crashZ
@@ -155,26 +193,26 @@ void runValidation(const RunOptions& options, Renderer& renderer,
         const auto bannerPixels=difference(plain,readPixels(1280,720));
         require(bannerPixels>2000,"Game over banner must be drawn in the centre");
         key(13);
-        require(game.state()==runner::RunState::Running && game.distance()==0 && game.obstacles()[0].z==-18
-            && player.x==0,"Enter must start a new run after game over");
-        for(int i=0;i<4*120 && game.state()==runner::RunState::Running;++i) tick(1.0f/120,0);
-        require(game.state()==runner::RunState::GameOver,"Second head-on obstacle must end the run");
+        require(game.state()==runner::RunState::Running && game.distance()==0
+            && game.obstacles()[0].z==static_cast<float>(-runner::Game::FirstRowDistance) && player.x==0,"Enter must start a new run after game over");
+        for(int i=0;i<30*120 && game.state()==runner::RunState::Running;++i) tick(1.0f/120,0);
+        require(game.state()==runner::RunState::GameOver,"Second still run must end in game over");
         key('r');
         require(game.state()==runner::RunState::Running && game.distance()==0,"R must start a new run after game over");
-        for(int i=0;i<120;++i) tick(1.0f/120,0);
+        drive(1.0f);
         key('p');
         frame(true,true);
         if(!options.screenshot.empty()) save(options.screenshot,1280,720,readPixels(1280,720));
         std::cout<<"PASS integrated GL smoke: 1 vs "<<count<<" obstacle draws, mismatched pixels="<<mismatches
             <<", visible obstacle pixels="<<visible
-            <<"; actual terrain VS matches CPU at 17297 vertices for 5 phase/toggle cases; P/R/T/I/C, jump/landing, movement, light, resize, bounded scrolling, collision/game over, Ready/Enter/R restart, best score, game over banner pixels="<<bannerPixels<<"; no GL errors\n";
+            <<"; actual terrain VS matches CPU at 17297 vertices for 5 phase/toggle cases; P/R/T/I/C, jump/landing, autopilot lane changes, light, resize, bounded scrolling, collision/game over, Ready/Enter/R restart, best score, game over banner pixels="<<bannerPixels<<"; no GL errors\n";
     }
     if(options.benchmark) {
         std::cout<<"mode,pool,visible,obstacle_draws,width,height,frames,frame_ms,fps\n";
         key('r');
         if(game.state()==runner::RunState::Paused) key('p');
         if(game.state()==runner::RunState::Ready) key(13);
-        for(int i=0;i<120;++i) tick(1.0f/120,0);
+        drive(1.0f);
         for(bool mode:{true,false}) {
             instanced=mode;
             frame();

@@ -13,6 +13,13 @@ using GroundHeight = std::function<float(float, float)>;
 struct Obstacle {
     float x, z;
     float width, height, depth;
+    int type;
+};
+
+struct RowLayout {
+    int count;
+    int lane[2];
+    int type[2];
 };
 
 class Game {
@@ -33,24 +40,42 @@ public:
     double speed() const { return state_ == RunState::Running ? speedAt(elapsed_) : 0.0; }
     double currentSpeed() const { return speedAt(elapsed_); }
     double loopLength() const { return loopLength_; }
+    std::size_t rowCount() const { return positions_.size(); }
+    std::uint64_t rowSerial(std::size_t row) const { return serials_[row]; }
     std::uint64_t recycled() const { return recycled_; }
     const std::vector<Obstacle>& obstacles() const { return obstacles_; }
     static bool onTerrain(const Obstacle& o);
     static double speedAt(double seconds);
     static double distanceAt(double seconds);
+    static double speedAtDistance(double metres);
+    static double doubleRowChance(std::uint64_t serial);
+    static int baseLane(std::uint64_t serial);
+    static RowLayout rowLayout(std::uint64_t serial);
+    static Obstacle makeObstacle(int lane, int type, float z);
+    static float laneX(int lane) { return LaneSpacing * static_cast<float>(lane - 1); }
     static constexpr double GroundPeriod = HeightField::period;
     static constexpr double RecycleZ = 12.0;
     static constexpr double BaseSpeed = 8.0;
     static constexpr double MaxSpeed = 22.0;
     static constexpr double Acceleration = 0.2;
+    static constexpr double RowSpacing = 16.0;
+    static constexpr double FirstRowDistance = 30.0;
+    static constexpr float LaneSpacing = 3.2f;
+    static constexpr float ObstacleWidth = 3.0f;
     static constexpr float PlayerWidth = 0.8f;
     static constexpr float PlayerDepth = 0.8f;
+    static constexpr int TypeCount = 3;
+    static constexpr std::uint64_t LayoutSeed = 0x2026C0DE5EEDull;
 private:
+    void rebuild();
     std::vector<Obstacle> obstacles_;
     std::vector<double> positions_;
+    std::vector<std::uint64_t> serials_;
+    std::vector<RowLayout> layouts_;
     RunState state_ = RunState::Ready;
     double distance_ = 0, best_ = 0, elapsed_ = 0, groundPhase_ = 0, loopLength_ = 0;
     std::uint64_t recycled_ = 0;
 };
 const char* stateName(RunState state);
+const char* obstacleTypeName(int type);
 }
