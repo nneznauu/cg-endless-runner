@@ -1,4 +1,5 @@
 #include "Game.h"
+#include "Player.h"
 #include <cmath>
 #include <stdexcept>
 
@@ -22,7 +23,9 @@ void Game::reset() {
                          1.55f, 1.2f + 0.35f * static_cast<float>(i % 3), 1.35f};
     }
 }
-void Game::startOrResume() { state_ = RunState::Running; }
+void Game::startOrResume() {
+    if (state_ == RunState::Ready || state_ == RunState::Paused) state_ = RunState::Running;
+}
 void Game::togglePause() {
     if (state_ == RunState::Running) state_ = RunState::Paused;
     else if (state_ == RunState::Paused) state_ = RunState::Running;
@@ -45,11 +48,33 @@ void Game::update(double dt) {
         obstacles_[i].z = static_cast<float>(z);
     }
 }
+bool Game::onTerrain(const Obstacle& o) {
+    return o.z - o.depth * 0.5f >= HeightField::farZ
+        && o.z + o.depth * 0.5f <= HeightField::nearZ;
+}
+bool Game::collides(float playerX, float playerFeetY, const GroundHeight& height) const {
+    const float halfWidth = PlayerWidth * 0.5f, halfDepth = PlayerDepth * 0.5f;
+    for (const auto& o : obstacles_) {
+        if (!onTerrain(o)) continue;
+        if (o.z + o.depth * 0.5f <= -halfDepth || o.z - o.depth * 0.5f >= halfDepth) continue;
+        if (o.x + o.width * 0.5f <= playerX - halfWidth || o.x - o.width * 0.5f >= playerX + halfWidth) continue;
+        const float base = height(o.x, o.z);
+        if (base + o.height <= playerFeetY || base >= playerFeetY + Player::height) continue;
+        return true;
+    }
+    return false;
+}
+bool Game::checkCollision(float playerX, float playerFeetY, const GroundHeight& height) {
+    if (state_ != RunState::Running || !collides(playerX, playerFeetY, height)) return false;
+    state_ = RunState::GameOver;
+    return true;
+}
 const char* stateName(RunState state) {
     switch (state) {
     case RunState::Ready: return "READY";
     case RunState::Running: return "RUNNING";
     case RunState::Paused: return "PAUSED";
+    case RunState::GameOver: return "GAME OVER";
     }
     return "UNKNOWN";
 }

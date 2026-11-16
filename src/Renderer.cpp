@@ -26,7 +26,6 @@ namespace {
         glUniform1f(glGetUniformLocation(program, name), value);
     }
 
-    // Each row is a five-bit mask. These compact glyphs are part of the project.
     std::array<unsigned char, 7> glyph(char input) {
         const char c = static_cast<char>(std::toupper(static_cast<unsigned char>(input)));
         switch (c) {
@@ -275,11 +274,9 @@ void Renderer::drawText(int width, int height, const std::vector<std::string>& l
 }
 
 void Renderer::updateObstacles(const runner::Game& game, const HeightField& terrain, bool displaced) {
-    // Never draw boxes beyond the mesh where surfaceHeight would clamp to its edge.
     std::vector<runner::Obstacle> visible;
     for (const auto& o : game.obstacles()) {
-        if (o.z - o.depth * 0.5f >= HeightField::farZ
-            && o.z + o.depth * 0.5f <= HeightField::nearZ) visible.push_back(o);
+        if (runner::Game::onTerrain(o)) visible.push_back(o);
     }
     obstacles.upload(visible, [&](float x, float z) {
         return terrain.surfaceHeight(x, z, static_cast<float>(game.groundPhase()), displaced);
@@ -287,7 +284,6 @@ void Renderer::updateObstacles(const runner::Game& game, const HeightField& terr
 }
 
 void Renderer::validateTerrainSampling(const HeightField& terrain, float phase, bool displaced) {
-    // Capture positions from the actual terrain VS, not a duplicate test shader.
     glUseProgram(terrainProgram);
     scalar(terrainProgram, "heightScale", displaced ? HeightField::amplitude : 0.0f);
     scalar(terrainProgram, "terrainWidth", HeightField::width);

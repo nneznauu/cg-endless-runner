@@ -2,12 +2,9 @@
 #include "Game.h"
 #include <glad/glad.h>
 #include <glm/glm.hpp>
-#include <functional>
 #include <vector>
 
 namespace runner {
-using GroundHeight = std::function<float(float, float)>;
-
 class Obstacles {
 public:
     Obstacles() = default;
