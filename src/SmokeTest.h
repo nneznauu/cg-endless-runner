@@ -4,6 +4,7 @@
 
 struct RunOptions {
     bool smoke = false, benchmark = false;
+    bool stress = false;
     std::size_t instances = 96;
     std::filesystem::path screenshot;
 };

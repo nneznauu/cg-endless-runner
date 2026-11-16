@@ -32,22 +32,45 @@ double repeatChance(std::uint64_t serial) {
 }
 }
 
-Game::Game(std::size_t count) {
+Game::Game(std::size_t count, bool stress) {
+    configure(count, stress);
+}
+void Game::configure(std::size_t count, bool stress) {
     if (count == 0 || count > 10000)
         throw std::invalid_argument("Obstacle count must be in [1, 10000]");
-    const std::size_t rows = std::max<std::size_t>(1, (count + 1) / 2);
-    positions_.resize(rows);
-    serials_.resize(rows);
-    layouts_.resize(rows);
-    obstacles_.reserve(rows * 2);
-    loopLength_ = RowSpacing * static_cast<double>(rows);
-    reset();
+    if (!stress_) best_ = std::max(best_, distance_);
+    distance_ = 0;
+    stress_ = stress;
+    poolSize_ = count;
+    const std::size_t slots = stress ? count : std::max<std::size_t>(1, (count + 1) / 2);
+    positions_.assign(slots, 0.0);
+    serials_.assign(slots, 0);
+    layouts_.assign(slots, RowLayout{});
+    obstacles_.clear();
+    obstacles_.reserve(stress ? count : slots * 2);
+    double nearest = 0, span = 0;
+    stressBounds(nearest, span);
+    loopLength_ = stress ? span : RowSpacing * static_cast<double>(slots);
+    if (stress) restart();
+    else reset();
+}
+void Game::stressBounds(double& nearest, double& span) {
+    nearest = HeightField::nearZ - StressSize * 0.5 - 0.01;
+    span = nearest - (HeightField::farZ + StressSize * 0.5 + 0.01);
 }
 void Game::reset() {
-    best_ = std::max(best_, distance_);
+    if (!stress_) best_ = std::max(best_, distance_);
     state_ = RunState::Ready;
     distance_ = elapsed_ = groundPhase_ = 0;
     recycled_ = 0;
+    if (stress_) {
+        obstacles_.clear();
+        for (std::size_t i = 0; i < positions_.size(); ++i) {
+            obstacles_.push_back(makeStressObstacle(i));
+            positions_[i] = obstacles_[i].z;
+        }
+        return;
+    }
     for (std::size_t i = 0; i < positions_.size(); ++i) {
         serials_[i] = i;
         positions_[i] = -FirstRowDistance - RowSpacing * static_cast<double>(i);
@@ -111,6 +134,24 @@ Obstacle Game::makeObstacle(int lane, int type, float z) {
     const int t = std::clamp(type, 0, TypeCount - 1);
     return {laneX(lane), z, ObstacleWidth, heights[t], depths[t], t};
 }
+Obstacle Game::makeStressObstacle(std::size_t index) {
+    static constexpr float heights[TypeCount]{0.5f, 1.0f, 1.8f};
+    const int type = static_cast<int>(index % TypeCount);
+    double nearest = 0, span = 0;
+    stressBounds(nearest, span);
+    const auto serial = static_cast<std::uint64_t>(index) + 0x5000000000ull;
+    const float x = StressHalfWidth * static_cast<float>(2.0 * layoutUnit(serial, 6) - 1.0);
+    const float z = static_cast<float>(nearest - span * layoutUnit(serial, 7));
+    return {x, z, StressSize, heights[type], StressSize, type};
+}
+std::size_t Game::nextStressCount(std::size_t count) {
+    for (std::size_t step : StressSteps) if (step > count) return step;
+    return StressSteps.back();
+}
+std::size_t Game::previousStressCount(std::size_t count) {
+    for (auto it = StressSteps.rbegin(); it != StressSteps.rend(); ++it) if (*it < count) return *it;
+    return StressSteps.front();
+}
 void Game::rebuild() {
     obstacles_.clear();
     for (std::size_t i = 0; i < positions_.size(); ++i) {
@@ -128,6 +169,21 @@ void Game::update(double dt) {
     const double travel = next - distance_;
     distance_ = next;
     groundPhase_ = std::fmod(groundPhase_ + travel, GroundPeriod);
+    if (stress_) {
+        double nearest = 0, span = 0;
+        stressBounds(nearest, span);
+        for (std::size_t i = 0; i < positions_.size(); ++i) {
+            double z = positions_[i] + travel;
+            if (z > nearest) {
+                const double wraps = std::ceil((z - nearest) / span);
+                z -= wraps * span;
+                recycled_ += static_cast<std::uint64_t>(wraps);
+            }
+            positions_[i] = z;
+            obstacles_[i].z = static_cast<float>(z);
+        }
+        return;
+    }
     const auto rows = static_cast<std::uint64_t>(positions_.size());
     for (std::size_t i = 0; i < positions_.size(); ++i) {
         double z = positions_[i] + travel;
@@ -160,7 +216,7 @@ bool Game::collides(float playerX, float playerFeetY, const GroundHeight& height
     return false;
 }
 bool Game::checkCollision(float playerX, float playerFeetY, const GroundHeight& height) {
-    if (state_ != RunState::Running || !collides(playerX, playerFeetY, height)) return false;
+    if (stress_ || state_ != RunState::Running || !collides(playerX, playerFeetY, height)) return false;
     state_ = RunState::GameOver;
     best_ = std::max(best_, distance_);
     return true;
