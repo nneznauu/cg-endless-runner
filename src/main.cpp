@@ -68,38 +68,63 @@ namespace {
         throw std::runtime_error("Shader folder not found. Run from the project folder or rebuild.");
     }
 
+    std::string metres(double value) {
+        std::ostringstream text;
+        text << std::fixed << std::setprecision(0) << value << " M";
+        return text.str();
+    }
+
     std::vector<std::string> statusText() {
-        std::ostringstream score;
-        score << "DISTANCE: " << std::fixed << std::setprecision(0) << game.distance()
-            << " M | FPS: " << fps;
+        std::ostringstream speed;
+        speed << "SPEED: " << std::fixed << std::setprecision(1) << game.currentSpeed()
+            << " M/S | FPS: " << fps;
+        const std::size_t visible = renderer.obstacleCount();
         std::vector<std::string> lines{
-            "ENDLESS RUNNER | TOPIC 4 | STAGE 1 INTEGRATED",
+            "TOPIC 4: ENDLESS RUNNER - INSTANCED OBSTACLES + HEIGHT-MAP GROUND",
             "MUKHAMEJAN / DANIYAR",
-            score.str(),
+            std::string("STATE: ") + runner::stateName(game.state())
+                + " | SCORE: " + metres(game.distance()) + " | BEST: " + metres(game.best()),
+            speed.str(),
             std::string("HEIGHT MAP: ") + (displaced ? "ON" : "OFF")
-                + " | CAMERA: " + (camera.orbit ? "ORBIT" : "FOLLOW")
-                + " | " + runner::stateName(game.state()),
-            std::string("INSTANCING: ") + (instanced ? "ON" : "OFF")
-                + " | VISIBLE: " + std::to_string(renderer.obstacleCount())
-                + " / " + std::to_string(game.obstacles().size())
-                + " | DRAWS: " + std::to_string(instanced ? (renderer.obstacleCount() ? 1 : 0) : renderer.obstacleCount()),
-            "STAGE 1: OBSTACLE COLLISION / GAME OVER NOT IMPLEMENTED"
+                + " | INSTANCING: " + (instanced ? "ON" : "OFF")
+                + " | CAMERA: " + (camera.orbit ? "ORBIT" : "FOLLOW"),
+            "VISIBLE OBSTACLES: " + std::to_string(visible) + " / " + std::to_string(game.obstacles().size())
+                + " | DRAW CALLS: " + std::to_string(instanced ? (visible ? 1 : 0) : visible)
         };
         if (help) {
-            lines.push_back("SPACE: JUMP | A/D: MOVE | P: PAUSE | R: RESET");
+            lines.push_back("ENTER/SPACE: START | SPACE: JUMP | A/D: MOVE | P: PAUSE");
+            lines.push_back("R: RESET | ENTER OR R: RESTART AFTER GAME OVER");
             lines.push_back("T: HEIGHT MAP | I: INSTANCING | C: CAMERA | V: WIREFRAME");
-            lines.push_back("ARROWS: ORBIT | WHEEL: ZOOM | J/L: LIGHT");
-            lines.push_back("H: HELP | ESC: EXIT");
+            lines.push_back("ARROWS: ORBIT | WHEEL: ZOOM | J/L: LIGHT | H: HELP | ESC: EXIT");
         }
         else lines.push_back("H: HELP");
         return lines;
+    }
+
+    std::vector<std::string> bannerText() {
+        switch (game.state()) {
+        case runner::RunState::Ready:
+            return { "ENDLESS RUNNER", "PRESS ENTER OR SPACE TO START",
+                "A/D: DODGE | SPACE: JUMP LOW BLOCKS", "BEST: " + metres(game.best()) };
+        case runner::RunState::Paused:
+            return { "PAUSED", "PRESS P TO RESUME" };
+        case runner::RunState::GameOver: {
+            std::vector<std::string> lines{ "GAME OVER", "SCORE: " + metres(game.distance()),
+                "BEST: " + metres(game.best()) };
+            if (game.distance() > 0.0 && game.distance() >= game.best()) lines.push_back("NEW BEST!");
+            lines.push_back("PRESS ENTER OR R TO RESTART");
+            return lines;
+        }
+        case runner::RunState::Running: break;
+        }
+        return {};
     }
 
     void display() {
         try {
             renderer.updateObstacles(game, terrain, displaced);
             renderer.draw(windowWidth, windowHeight, camera, player, phase, displaced,
-                lightAngle, wireframe, statusText(), instanced);
+                lightAngle, wireframe, statusText(), instanced, true, bannerText());
 #ifndef NDEBUG
             checkGraphics("frame rendering");
 #else
@@ -248,7 +273,7 @@ int main(int argc, char** argv) {
         glutInitContextProfile(GLUT_CORE_PROFILE);
         glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH);
         glutInitWindowSize(windowWidth, windowHeight);
-        glutCreateWindow("Topic 4 - Endless runner with instanced obstacles and a height-map ground | Stage 1");
+        glutCreateWindow("Topic 4 - Endless runner with instanced obstacles and a height-map ground");
         glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_GLUTMAINLOOP_RETURNS);
         if (!gladLoadGL() || !GLAD_GL_VERSION_3_3) {
             throw std::runtime_error("OpenGL 3.3 core could not be initialized.");
@@ -265,12 +290,11 @@ int main(int argc, char** argv) {
         reshape(windowWidth, windowHeight);
         renderer.updateObstacles(game, terrain, displaced);
         for (const auto& line : statusText()) std::cout << line << '\n';
-        std::cout << "Stage 1 integrated: height map, player and instanced obstacles. Obstacle collisions/game-over are pending.\n";
         if (options.smoke || options.benchmark) {
             glutDisplayFunc(display);
             glutReshapeFunc(reshape);
             runValidation(options, renderer, terrain, player, camera, game, displaced, instanced,
-                simulate, performKeyAction, statusText);
+                simulate, performKeyAction, statusText, bannerText);
             close(); glutDestroyWindow(glutGetWindow());
             return 0;
         }

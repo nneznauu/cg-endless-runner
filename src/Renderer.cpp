@@ -73,8 +73,32 @@ namespace {
         case '(': return { 2,4,8,8,8,4,2 };
         case ')': return { 8,4,2,2,2,4,8 };
         case '+': return { 0,4,4,31,4,4,0 };
+        case '!': return { 4,4,4,4,4,0,4 };
         default: return {};
         }
+    }
+
+    void appendText(std::vector<TextVertex>& vertices, const std::string& line,
+        float x, float y, float pixel) {
+        for (char c : line) {
+            const auto rows = glyph(c);
+            for (int row = 0; row < 7; ++row) {
+                for (int col = 0; col < 5; ++col) {
+                    if ((rows[row] & (1 << (4 - col))) == 0) continue;
+                    const float left = x + col * pixel, top = y + row * pixel;
+                    const float right = left + pixel, bottom = top + pixel;
+                    vertices.insert(vertices.end(), {
+                        {left,top},{right,top},{right,bottom},
+                        {left,top},{right,bottom},{left,bottom}
+                    });
+                }
+            }
+            x += pixel * 6.0f;
+        }
+    }
+
+    float textWidth(const std::string& line, float pixel) {
+        return line.empty() ? 0.0f : (static_cast<float>(line.size()) * 6.0f - 1.0f) * pixel;
     }
 }
 
@@ -186,7 +210,8 @@ void Renderer::initialize(const std::filesystem::path& root, const HeightField& 
 
 void Renderer::draw(int width, int height, const Camera& camera, const Player& player,
     float phase, bool displaced, float lightAngle, bool wireframe,
-    const std::vector<std::string>& hud, bool instanced, bool showObstacles) {
+    const std::vector<std::string>& hud, bool instanced, bool showObstacles,
+    const std::vector<std::string>& banner) {
     glClearColor(0.055f, 0.085f, 0.14f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     const glm::mat4 view = camera.view();
@@ -232,32 +257,30 @@ void Renderer::draw(int width, int height, const Camera& camera, const Player& p
     vector(obstacleProgram, "uColor", glm::vec3(0.20f, 0.72f, 0.78f));
     obstacleCalls = showObstacles ? obstacles.draw(obstacleProgram, instanced) : 0;
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    if (!hud.empty()) drawText(width, height, hud);
+    if (!hud.empty() || !banner.empty()) drawText(width, height, hud, banner);
     glBindVertexArray(0);
 }
 
-void Renderer::drawText(int width, int height, const std::vector<std::string>& lines) {
-    const float pixel = width < 900 ? 1.5f : 2.0f;
+void Renderer::drawText(int width, int height, const std::vector<std::string>& lines,
+    const std::vector<std::string>& banner) {
+    const bool compact = width < 900;
+    const float pixel = compact ? 1.5f : 2.0f;
     std::vector<TextVertex> vertices;
     float y = 18.0f;
     for (const std::string& line : lines) {
-        float x = 18.0f;
-        for (char c : line) {
-            const auto rows = glyph(c);
-            for (int row = 0; row < 7; ++row) {
-                for (int col = 0; col < 5; ++col) {
-                    if ((rows[row] & (1 << (4 - col))) == 0) continue;
-                    const float left = x + col * pixel, top = y + row * pixel;
-                    const float right = left + pixel, bottom = top + pixel;
-                    vertices.insert(vertices.end(), {
-                        {left,top},{right,top},{right,bottom},
-                        {left,top},{right,bottom},{left,bottom}
-                    });
-                }
-            }
-            x += pixel * 6.0f;
-        }
+        appendText(vertices, line, 18.0f, y, pixel);
         y += pixel * 11.0f;
+    }
+    if (!banner.empty()) {
+        const float title = compact ? 6.0f : 8.0f, body = compact ? 2.5f : 3.5f;
+        float total = title * 7.0f;
+        for (std::size_t i = 1; i < banner.size(); ++i) total += body * 11.0f + (i == 1 ? title * 4.0f : 0.0f);
+        float top = (static_cast<float>(height) - total) * 0.5f;
+        for (std::size_t i = 0; i < banner.size(); ++i) {
+            const float size = i == 0 ? title : body;
+            appendText(vertices, banner[i], (static_cast<float>(width) - textWidth(banner[i], size)) * 0.5f, top, size);
+            top += i == 0 ? title * 11.0f : body * 11.0f;
+        }
     }
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);

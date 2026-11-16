@@ -13,4 +13,5 @@ void runValidation(const RunOptions& options, Renderer& renderer,
     bool& displaced, bool& instanced,
     const std::function<void(float,float)>& tick,
     const std::function<void(unsigned char)>& key,
-    const std::function<std::vector<std::string>()>& hud);
+    const std::function<std::vector<std::string>()>& hud,
+    const std::function<std::vector<std::string>()>& banner);
