@@ -84,6 +84,19 @@ int main() {
             "Game over must freeze the world and ignore pause/resume");
         check(!hit.checkCollision(0,0,flat),"Game over must not report a second crash");
 
+        const double firstCrash=hit.distance();
+        check(near(hit.best(),firstCrash),"Crash must record the best score");
+        hit.restart();
+        check(hit.state()==RunState::Running && hit.distance()==0 && hit.groundPhase()==0 && hit.recycled()==0,
+            "Restart must start a clean run");
+        check(near(hit.obstacles()[0].z,first.z) && near(hit.best(),firstCrash),"Restart must restore obstacles and keep best");
+        hit.update(0.5); hit.reset();
+        check(hit.state()==RunState::Ready && near(hit.best(),firstCrash),"Shorter run must not replace best");
+        hit.restart(); hit.update(10); hit.reset();
+        check(near(hit.best(),80),"Longer run must replace best");
+        hit.restart(); hit.update(-hit.obstacles()[0].z/hit.speed());
+        check(hit.checkCollision(0,0,flat) && near(hit.best(),80),"Later shorter crash must keep best");
+
         HeightField ground;
         auto run=[&](bool jump) {
             Game g; g.startOrResume();
@@ -100,7 +113,7 @@ int main() {
         };
         check(run(false)==RunState::GameOver,"Running into the centre obstacle must end the run");
         check(run(true)==RunState::Running,"Jumping over the low obstacle must not collide");
-        std::cout<<"PASS: "<<checks<<" assertions; ready, motion, score, pause, recycle, reset, 75-second FPS independence, long-run precision, invalid input, collisions, jump clearance, game over\n";
+        std::cout<<"PASS: "<<checks<<" assertions; ready, motion, score, pause, recycle, reset, 75-second FPS independence, long-run precision, invalid input, collisions, jump clearance, game over, restart, best score\n";
         return 0;
     } catch(const std::exception& e) { std::cerr<<"FAIL: "<<e.what()<<'\n'; return 1; }
 }

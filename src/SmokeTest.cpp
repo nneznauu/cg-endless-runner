@@ -49,7 +49,7 @@ RunOptions parseRunOptions(int argc,char** argv) {
             o.instances=n;
         } else if (arg=="--help") {
             std::cout<<"endless_runner [--smoke-test] [--screenshot file.ppm] [--benchmark] [--instances 96]\n"
-                <<"Space jump; A/D move; P pause; R reset; T height map; I instancing; C camera; arrows orbit; wheel zoom; J/L light; V wireframe; H help; Esc exit.\n";
+                <<"Space/Enter start; Space jump; A/D move; P pause; R reset; Enter/R restart after game over; T height map; I instancing; C camera; arrows orbit; wheel zoom; J/L light; V wireframe; H help; Esc exit.\n";
             std::exit(0);
         } else throw std::invalid_argument("Unknown option: "+arg);
     }
@@ -72,6 +72,11 @@ void runValidation(const RunOptions& options, Renderer& renderer,
         checkGraphics("integrated frame");
     };
     auto toSafeLane=[&]() { while (player.x<1.5f) tick(1.0f/120.0f,1); };
+    require(game.state()==runner::RunState::Ready,"Program must start in Ready");
+    tick(1.0f,1);
+    require(game.distance()==0 && player.x==0,"Ready must keep the world and player still");
+    key('r'); require(game.state()==runner::RunState::Ready,"R in Ready must keep Ready");
+    key(13); require(game.state()==runner::RunState::Running && player.grounded,"Enter must start the run");
     toSafeLane();
     for (int i=0;i<60;++i) tick(1.0f/60.0f,0);
     if (options.smoke) {
@@ -135,9 +140,16 @@ void runValidation(const RunOptions& options, Renderer& renderer,
         for(int i=0;i<4*120 && game.state()==runner::RunState::Running;++i) tick(1.0f/120,0);
         require(game.state()==runner::RunState::GameOver,"Head-on obstacle must end the run");
         const double crashDistance=game.distance(); const float crashZ=game.obstacles()[0].z;
-        tick(0.5f,1); key(' ');
-        require(game.distance()==crashDistance && game.obstacles()[0].z==crashZ && player.x==0 && player.grounded,
-            "Game over must freeze world, player and jump");
+        tick(0.5f,1); key(' '); key('p');
+        require(game.state()==runner::RunState::GameOver && game.distance()==crashDistance && game.obstacles()[0].z==crashZ
+            && player.x==0 && player.grounded,"Game over must freeze world, player, pause and jump");
+        require(game.best()>=crashDistance,"Best score must keep the crash distance");
+        frame(true,true);
+        key(13);
+        require(game.state()==runner::RunState::Running && game.distance()==0 && game.obstacles()[0].z==-18
+            && player.x==0,"Enter must start a new run after game over");
+        for(int i=0;i<4*120 && game.state()==runner::RunState::Running;++i) tick(1.0f/120,0);
+        require(game.state()==runner::RunState::GameOver,"Second head-on obstacle must end the run");
         key('r');
         require(game.state()==runner::RunState::Running && game.distance()==0,"R must start a new run after game over");
         for(int i=0;i<120;++i) tick(1.0f/120,0);
@@ -146,11 +158,13 @@ void runValidation(const RunOptions& options, Renderer& renderer,
         if(!options.screenshot.empty()) save(options.screenshot,1280,720,readPixels(1280,720));
         std::cout<<"PASS integrated GL smoke: 1 vs "<<count<<" obstacle draws, mismatched pixels="<<mismatches
             <<", visible obstacle pixels="<<visible
-            <<"; actual terrain VS matches CPU at 17297 vertices for 5 phase/toggle cases; P/R/T/I/C, jump/landing, movement, light, resize, bounded scrolling, collision/game over; no GL errors\n";
+            <<"; actual terrain VS matches CPU at 17297 vertices for 5 phase/toggle cases; P/R/T/I/C, jump/landing, movement, light, resize, bounded scrolling, collision/game over, Ready/Enter/R restart, best score; no GL errors\n";
     }
     if(options.benchmark) {
         std::cout<<"mode,pool,visible,obstacle_draws,width,height,frames,frame_ms,fps\n";
-        key('r'); if(game.state()!=runner::RunState::Running) key('p');
+        key('r');
+        if(game.state()==runner::RunState::Paused) key('p');
+        if(game.state()==runner::RunState::Ready) key(13);
         for(int i=0;i<120;++i) tick(1.0f/120,0);
         for(bool mode:{true,false}) {
             instanced=mode;
