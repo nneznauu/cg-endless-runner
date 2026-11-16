@@ -7,6 +7,9 @@
 #include <cctype>
 #include <cstddef>
 #include <cmath>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
 #include <stdexcept>
 #include <vector>
 
@@ -333,11 +336,31 @@ void Renderer::validateTerrainSampling(const HeightField& terrain, float phase, 
     glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, 0);
     glDeleteBuffers(1, &feedback);
     checkGraphics("terrain transform-feedback validation");
+    const std::size_t columns = static_cast<std::size_t>(HeightField::width / HeightField::gridStep) + 1;
+    constexpr float tolerance = 0.0001f;
+    float maximumError = 0.0f;
     for (std::size_t i = 0; i < positions.size(); i += 3) {
-        const float expected = terrain.sample(positions[i], positions[i+2], phase, displaced);
-        if (!std::isfinite(positions[i+1]) || std::abs(positions[i+1]-expected) > 0.0001f)
-            throw std::runtime_error("Terrain CPU/GPU height mismatch");
+        const std::size_t vertex = i / 3;
+        const float x = -HeightField::width * 0.5f + static_cast<float>(vertex % columns) * HeightField::gridStep;
+        const float z = HeightField::farZ + static_cast<float>(vertex / columns) * HeightField::gridStep;
+        const float expected = terrain.sample(x, z, phase, displaced);
+        const float error = std::abs(positions[i+1] - expected);
+        if (!std::isfinite(positions[i]) || !std::isfinite(positions[i+1]) || !std::isfinite(positions[i+2])
+            || std::abs(positions[i] - x) > tolerance || std::abs(positions[i+2] - z) > tolerance
+            || error > tolerance) {
+            std::ostringstream message;
+            message << std::setprecision(9) << "Terrain CPU/GPU height mismatch: vertex=" << vertex
+                << " phase=" << phase << " displaced=" << displaced
+                << " expected_xyz=(" << x << ',' << expected << ',' << z << ')'
+                << " gpu_xyz=(" << positions[i] << ',' << positions[i+1] << ',' << positions[i+2] << ')'
+                << " height_error=" << error << " tolerance=" << tolerance;
+            throw std::runtime_error(message.str());
+        }
+        if (error > maximumError) maximumError = error;
     }
+    std::cout << "PASS terrain sampling: phase=" << phase << " displaced=" << displaced
+        << " vertices=" << terrainVertexCount << " max_height_error=" << maximumError
+        << " tolerance=" << tolerance << '\n';
 }
 
 void Renderer::shutdown() {
