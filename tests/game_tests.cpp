@@ -257,6 +257,41 @@ int main() {
         hit.restart(); advance(hit,-centreZ);
         check(hit.checkCollision(0,0,flat) && near(hit.best(),330),"Later shorter crash must keep best");
 
+        Game stress(1000,true), stressTwin(1000,true);
+        check(stress.stress() && stress.poolSize()==1000 && stress.state()==RunState::Running,"Stress test starts running with the requested pool");
+        check(stress.obstacles().size()==1000,"Stress test submits every obstacle");
+        int stressTypes[Game::TypeCount]{};
+        bool stressPlaced=true, stressSame=true;
+        for (std::size_t i=0;i<stress.obstacles().size();++i) {
+            const auto& o=stress.obstacles()[i];
+            stressPlaced=stressPlaced && Game::onTerrain(o) && std::abs(o.x)<=Game::StressHalfWidth;
+            stressSame=stressSame && o.x==stressTwin.obstacles()[i].x && o.z==stressTwin.obstacles()[i].z && o.type==stressTwin.obstacles()[i].type;
+            ++stressTypes[o.type];
+        }
+        check(stressPlaced,"Stress obstacles lie inside the visible terrain");
+        check(stressSame,"Stress layout is deterministic");
+        check(stressTypes[0]>300 && stressTypes[1]>300 && stressTypes[2]>300,"Stress layout uses all three types");
+        bool overlapsPlayer=false;
+        for (float x=-4.0f;x<=4.0f && !overlapsPlayer;x+=0.5f) overlapsPlayer=stress.collides(x,0,flat);
+        check(overlapsPlayer && !stress.checkCollision(0,0,flat) && stress.state()==RunState::Running,"Stress test disables collisions");
+        for(int i=0;i<30*60;++i) { stress.update(1.0/60); stress.checkCollision(0,0,flat); }
+        bool stillPlaced=stress.state()==RunState::Running && stress.recycled()>0 && stress.obstacles().size()==1000;
+        for (const auto& o:stress.obstacles()) stillPlaced=stillPlaced && Game::onTerrain(o);
+        check(stillPlaced,"Scrolling stress obstacles wrap inside the terrain");
+        Game stressFast(1000,true);
+        for(int i=0;i<144*30;++i) stressFast.update(1.0/144);
+        bool stressSteady=true;
+        for (std::size_t i=0;i<stress.obstacles().size();++i) stressSteady=stressSteady && near(stress.obstacles()[i].z,stressFast.obstacles()[i].z,1e-3);
+        check(stressSteady,"Stress scrolling does not depend on frame rate");
+        const double bestBefore=stress.best();
+        stress.reset();
+        check(stress.stress() && stress.best()==bestBefore,"Stress distance never becomes the best score");
+        stress.configure(Game::NormalCount,false);
+        check(!stress.stress() && stress.state()==RunState::Ready && stress.rowCount()==48 && stress.best()==bestBefore,"B configuration returns to the normal game");
+        check(Game::nextStressCount(96)==250 && Game::nextStressCount(5000)==10000 && Game::nextStressCount(10000)==10000
+            && Game::previousStressCount(250)==96 && Game::previousStressCount(96)==96 && Game::previousStressCount(1234)==1000,
+            "Stress steps follow 96, 250, 500, 1000, 2500, 5000, 10000");
+
         HeightField ground;
         auto jumpOver=[&](int type,bool jump,double warmup) {
             Game g; g.startOrResume();
@@ -289,7 +324,7 @@ int main() {
         check(jumpOver(1,true,0)==RunState::GameOver,"A crate cannot be jumped");
         check(jumpOver(2,true,0)==RunState::GameOver,"A column cannot be jumped");
         check(jumpOver(2,true,90)==RunState::GameOver,"A column cannot be jumped at top speed");
-        std::cout<<"PASS: "<<checks<<" assertions; ready, speed ramp and cap, shared travel, pause, recycle, reset, deterministic rows, passable lanes, no gaps, three types, jump rules, difficulty, FPS independence, long-run precision, invalid input, collisions, game over, restart, best score\n";
+        std::cout<<"PASS: "<<checks<<" assertions; ready, speed ramp and cap, shared travel, pause, recycle, reset, deterministic rows, passable lanes, no gaps, three types, jump rules, difficulty, FPS independence, long-run precision, invalid input, collisions, game over, restart, best score, stress mode\n";
         return 0;
     } catch(const std::exception& e) { std::cerr<<"FAIL: "<<e.what()<<'\n'; return 1; }
 }

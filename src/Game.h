@@ -1,6 +1,7 @@
 #pragma once
 #include "HeightField.h"
 #include <cstddef>
+#include <array>
 #include <cstdint>
 #include <functional>
 #include <vector>
@@ -24,7 +25,8 @@ struct RowLayout {
 
 class Game {
 public:
-    explicit Game(std::size_t count = 96);
+    explicit Game(std::size_t count = 96, bool stress = false);
+    void configure(std::size_t count, bool stress);
     void reset();
     void restart();
     void startOrResume();
@@ -33,6 +35,8 @@ public:
     bool collides(float playerX, float playerFeetY, const GroundHeight& height) const;
     bool checkCollision(float playerX, float playerFeetY, const GroundHeight& height);
     RunState state() const { return state_; }
+    bool stress() const { return stress_; }
+    std::size_t poolSize() const { return poolSize_; }
     double distance() const { return distance_; }
     double best() const { return best_; }
     double elapsed() const { return elapsed_; }
@@ -52,6 +56,9 @@ public:
     static int baseLane(std::uint64_t serial);
     static RowLayout rowLayout(std::uint64_t serial);
     static Obstacle makeObstacle(int lane, int type, float z);
+    static Obstacle makeStressObstacle(std::size_t index);
+    static std::size_t nextStressCount(std::size_t count);
+    static std::size_t previousStressCount(std::size_t count);
     static float laneX(int lane) { return LaneSpacing * static_cast<float>(lane - 1); }
     static constexpr double GroundPeriod = HeightField::period;
     static constexpr double RecycleZ = 12.0;
@@ -66,13 +73,20 @@ public:
     static constexpr float PlayerDepth = 0.8f;
     static constexpr int TypeCount = 3;
     static constexpr std::uint64_t LayoutSeed = 0x2026C0DE5EEDull;
+    static constexpr std::size_t NormalCount = 96;
+    static constexpr std::array<std::size_t, 7> StressSteps{96, 250, 500, 1000, 2500, 5000, 10000};
+    static constexpr float StressHalfWidth = 10.0f;
+    static constexpr float StressSize = 0.7f;
 private:
     void rebuild();
+    static void stressBounds(double& nearest, double& span);
     std::vector<Obstacle> obstacles_;
     std::vector<double> positions_;
     std::vector<std::uint64_t> serials_;
     std::vector<RowLayout> layouts_;
     RunState state_ = RunState::Ready;
+    bool stress_ = false;
+    std::size_t poolSize_ = 0;
     double distance_ = 0, best_ = 0, elapsed_ = 0, groundPhase_ = 0, loopLength_ = 0;
     std::uint64_t recycled_ = 0;
 };

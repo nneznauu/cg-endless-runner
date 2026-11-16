@@ -79,22 +79,34 @@ namespace {
         speed << "SPEED: " << std::fixed << std::setprecision(1) << game.currentSpeed()
             << " M/S | FPS: " << fps;
         const std::size_t visible = renderer.obstacleCount();
+        const std::string draws = std::to_string(renderer.expectedObstacleDraws(instanced));
+        const std::string toggles = std::string("HEIGHT MAP: ") + (displaced ? "ON" : "OFF")
+            + " | INSTANCING: " + (instanced ? "ON" : "OFF")
+            + " | CAMERA: " + (camera.orbit ? "ORBIT" : "FOLLOW");
         std::vector<std::string> lines{
             "TOPIC 4: ENDLESS RUNNER - INSTANCED OBSTACLES + HEIGHT-MAP GROUND",
-            "MUKHAMEJAN / DANIYAR",
-            std::string("STATE: ") + runner::stateName(game.state())
-                + " | SCORE: " + metres(game.distance()) + " | BEST: " + metres(game.best()),
-            speed.str(),
-            std::string("HEIGHT MAP: ") + (displaced ? "ON" : "OFF")
-                + " | INSTANCING: " + (instanced ? "ON" : "OFF")
-                + " | CAMERA: " + (camera.orbit ? "ORBIT" : "FOLLOW"),
-            "VISIBLE OBSTACLES: " + std::to_string(visible) + " / " + std::to_string(game.obstacles().size())
-                + " | DRAW CALLS: " + std::to_string(renderer.expectedObstacleDraws(instanced))
+            "MUKHAMEJAN / DANIYAR"
         };
+        if (game.stress()) {
+            lines.push_back("STRESS TEST: " + std::to_string(game.poolSize()) + " OBSTACLES | "
+                + runner::stateName(game.state()) + " | COLLISIONS OFF");
+            lines.push_back("SUBMITTED INSTANCES: " + std::to_string(visible) + " | DRAW CALLS: " + draws
+                + " | FPS: " + std::to_string(fps));
+            lines.push_back(toggles);
+        }
+        else {
+            lines.push_back(std::string("STATE: ") + runner::stateName(game.state())
+                + " | SCORE: " + metres(game.distance()) + " | BEST: " + metres(game.best()));
+            lines.push_back(speed.str());
+            lines.push_back(toggles);
+            lines.push_back("VISIBLE OBSTACLES: " + std::to_string(visible) + " / " + std::to_string(game.obstacles().size())
+                + " | DRAW CALLS: " + draws);
+        }
         if (help) {
             lines.push_back("ENTER/SPACE: START | SPACE: JUMP | A/D: MOVE | P: PAUSE");
             lines.push_back("R: RESET | ENTER OR R: RESTART AFTER GAME OVER");
             lines.push_back("T: HEIGHT MAP | I: INSTANCING | C: CAMERA | V: WIREFRAME");
+            lines.push_back("N/M: STRESS TEST MORE/FEWER OBSTACLES | B: BACK TO GAME");
             lines.push_back("ARROWS: ORBIT | WHEEL: ZOOM | J/L: LIGHT | H: HELP | ESC: EXIT");
         }
         else lines.push_back("H: HELP");
@@ -210,6 +222,12 @@ namespace {
         player.reset(terrain, phase, displaced);
     }
 
+    void configureGame(std::size_t count, bool stress) {
+        game.configure(count, stress);
+        phase = 0.0f;
+        player.reset(terrain, phase, displaced);
+    }
+
     void performKeyAction(unsigned char key) {
         const runner::RunState state = game.state();
         switch (key) {
@@ -233,6 +251,16 @@ namespace {
         case 'h': help = !help; break;
         case 'r':
             resetRun(state == runner::RunState::GameOver ? runner::RunState::Running : state);
+            break;
+        case 'n':
+            configureGame(game.stress() ? runner::Game::nextStressCount(game.poolSize())
+                : runner::Game::StressSteps.front(), true);
+            break;
+        case 'm':
+            if (game.stress()) configureGame(runner::Game::previousStressCount(game.poolSize()), true);
+            break;
+        case 'b':
+            if (game.stress()) configureGame(runner::Game::NormalCount, false);
             break;
         default: break;
         }
@@ -267,7 +295,7 @@ namespace {
 int main(int argc, char** argv) {
     try {
         const auto options = parseRunOptions(argc, argv);
-        game = runner::Game(options.instances);
+        game = runner::Game(options.stress ? options.instances : runner::Game::NormalCount, options.stress);
         glutInit(&argc, argv);
         glutInitContextVersion(3, 3);
         glutInitContextProfile(GLUT_CORE_PROFILE);

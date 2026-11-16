@@ -82,9 +82,10 @@ RunOptions parseRunOptions(int argc,char** argv) {
             const auto n=std::stoul(v,&used);
             if (used!=v.size() || n<1 || n>10000) throw std::invalid_argument("--instances must be 1..10000");
             o.instances=n;
+            o.stress=true;
         } else if (arg=="--help") {
             std::cout<<"endless_runner [--smoke-test] [--screenshot file.ppm] [--benchmark] [--instances 96]\n"
-                <<"Space/Enter start; Space jump; A/D move; P pause; R reset; Enter/R restart after game over; T height map; I instancing; C camera; arrows orbit; wheel zoom; J/L light; V wireframe; H help; Esc exit.\n";
+                <<"Space/Enter start; Space jump; A/D move; P pause; R reset; Enter/R restart after game over; T height map; I instancing; C camera; arrows orbit; wheel zoom; J/L light; V wireframe; N/M stress test more/fewer obstacles; B back to game; H help; Esc exit. --instances N starts the stress test with N obstacles; --benchmark measures that stress layout.\n";
             std::exit(0);
         } else throw std::invalid_argument("Unknown option: "+arg);
     }
@@ -112,7 +113,8 @@ void runValidation(const RunOptions& options, Renderer& renderer,
         const int steps=static_cast<int>(std::lround(seconds*120.0f));
         for (int i=0;i<steps;++i) tick(1.0f/120.0f,autopilotMove(game,player.x));
     };
-    require(game.state()==runner::RunState::Ready,"Program must start in Ready");
+    if (game.stress()) key('b');
+    require(game.state()==runner::RunState::Ready && !game.stress(),"Program must start in Ready");
     require(!banner().empty() && banner()[0]=="ENDLESS RUNNER","Ready must show the start banner");
     for (const auto& line:hud()) require(line.find("STAGE")==std::string::npos,"HUD must not show outdated stage text");
     tick(1.0f,1);
@@ -201,30 +203,57 @@ void runValidation(const RunOptions& options, Renderer& renderer,
         require(game.state()==runner::RunState::GameOver,"Second still run must end in game over");
         key('r');
         require(game.state()==runner::RunState::Running && game.distance()==0,"R must start a new run after game over");
+        key('n');
+        require(game.stress() && game.poolSize()==96 && game.state()==runner::RunState::Running,"N must enter the stress test with 96 obstacles");
+        frame();
+        require(renderer.obstacleCount()==96 && renderer.obstacleDrawCalls()==3,"Stress test must submit every obstacle in three draws");
+        key('n'); key('n'); key('n');
+        require(game.poolSize()==1000,"N must step 96, 250, 500, 1000");
+        frame(); const auto stressOn=readPixels(1280,720);
+        require(renderer.obstacleCount()==1000 && renderer.obstacleDrawCalls()==3,"1000 stress obstacles must use three instanced draws");
+        key('i'); frame(); const auto stressOff=readPixels(1280,720);
+        require(renderer.obstacleDrawCalls()==1000,"Stress test without instancing must draw every obstacle");
+        const auto stressMismatch=difference(stressOn,stressOff);
+        require(stressMismatch==0,"Stress instanced and individual scenes differ");
+        key('i');
+        const double stressStart=game.distance();
+        for(int i=0;i<4*120;++i) tick(1.0f/120,0);
+        frame();
+        require(game.state()==runner::RunState::Running && game.distance()>stressStart+30 && renderer.obstacleCount()==1000,
+            "Stress test must scroll without collisions and keep every obstacle on the terrain");
+        bool stressHud=false;
+        for (const auto& line:hud()) stressHud=stressHud || line.find("STRESS TEST: 1000")!=std::string::npos;
+        require(stressHud,"HUD must show the stress obstacle count");
+        key('m'); require(game.stress() && game.poolSize()==500,"M must reduce the stress obstacle count");
+        key('b');
+        require(!game.stress() && game.poolSize()==96 && game.state()==runner::RunState::Ready && game.distance()==0,
+            "B must return to the normal game");
+        key(13);
         drive(1.0f);
         key('p');
         frame(true,true);
         if(!options.screenshot.empty()) save(options.screenshot,1280,720,readPixels(1280,720));
         std::cout<<"PASS integrated GL smoke: "<<typeDraws<<" vs "<<count<<" obstacle draws, mismatched pixels="<<mismatches
             <<", visible obstacle pixels="<<visible
-            <<"; actual terrain VS matches CPU at 17297 vertices for 5 phase/toggle cases; P/R/T/I/C, jump/landing, autopilot lane changes, light, resize, bounded scrolling, collision/game over, Ready/Enter/R restart, best score, game over banner pixels="<<bannerPixels<<"; no GL errors\n";
+            <<"; actual terrain VS matches CPU at 17297 vertices for 5 phase/toggle cases; P/R/T/I/C, jump/landing, autopilot lane changes, light, resize, bounded scrolling, collision/game over, Ready/Enter/R restart, best score, game over banner pixels="<<bannerPixels<<", stress N/M/B with 1000 obstacles (3 vs 1000 draws, mismatched pixels="<<stressMismatch<<"); no GL errors\n";
     }
     if(options.benchmark) {
         std::cout<<"mode,pool,visible,obstacle_draws,width,height,frames,frame_ms,fps\n";
-        key('r');
-        if(game.state()==runner::RunState::Paused) key('p');
-        if(game.state()==runner::RunState::Ready) key(13);
-        drive(1.0f);
+        game.configure(options.instances,true);
+        player.reset(terrain,0,displaced);
+        for(int i=0;i<120;++i) tick(1.0f/120,0);
+        require(game.stress() && game.state()==runner::RunState::Running,"Benchmark must run the stress layout");
         for(bool mode:{true,false}) {
             instanced=mode;
             frame();
+            require(renderer.obstacleCount()==game.poolSize(),"Benchmark must submit every stress obstacle");
             auto render=[&]() { renderer.draw(1280,720,camera,player,static_cast<float>(game.groundPhase()),displaced,0.8f,false,{},mode); glFinish(); };
             for(int i=0;i<20;++i) render();
             const auto start=std::chrono::steady_clock::now();
             for(int i=0;i<120;++i) render();
             const double seconds=std::chrono::duration<double>(std::chrono::steady_clock::now()-start).count();
             checkGraphics("benchmark");
-            std::cout<<(mode?"ON":"OFF")<<','<<game.obstacles().size()<<','<<renderer.obstacleCount()<<','<<renderer.obstacleDrawCalls()
+            std::cout<<(mode?"ON":"OFF")<<','<<game.poolSize()<<','<<renderer.obstacleCount()<<','<<renderer.obstacleDrawCalls()
                 <<",1280,720,120,"<<std::fixed<<std::setprecision(3)<<seconds*1000/120<<','<<120/seconds<<'\n';
         }
     }
