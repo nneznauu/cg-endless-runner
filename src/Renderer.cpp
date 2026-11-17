@@ -241,18 +241,33 @@ void Renderer::draw(int width, int height, const Camera& camera, const Player& p
     glDrawElements(GL_TRIANGLES, terrainIndexCount, GL_UNSIGNED_INT, nullptr);
 
     glUseProgram(playerProgram);
-    glm::mat4 model(1.0f);
-    model = glm::translate(model, glm::vec3(player.x, player.feetY + Player::height * 0.5f, 0));
-    model = glm::scale(model, glm::vec3(0.8f, Player::height, 0.8f));
-    matrix(playerProgram, "model", model);
     matrix(playerProgram, "view", view);
     matrix(playerProgram, "projection", projection);
     vector(playerProgram, "cameraPosition", camera.eye);
     vector(playerProgram, "directionToLight", light);
-    vector(playerProgram, "objectColor", glm::vec3(0.95f, 0.58f, 0.22f));
     glUniform1i(glGetUniformLocation(playerProgram, "groundPass"), 0);
     glBindVertexArray(playerVao);
-    glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, nullptr);
+    const glm::mat4 base = glm::translate(glm::mat4(1.0f), glm::vec3(player.x, player.feetY, 0.0f));
+    const auto part = [&](const glm::mat4& transform, const glm::vec3& size, const glm::vec3& color) {
+        matrix(playerProgram, "model", glm::scale(transform, size));
+        vector(playerProgram, "objectColor", color);
+        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, nullptr);
+    };
+    const float legLength = Player::height * 0.42f;
+    const float torsoTop = Player::height * 0.77f;
+    const float stride = 0.6f * std::sin(glm::radians(360.0f * 48.0f / 128.0f) * phase);
+    const auto leg = [&](float side, float angle) {
+        glm::mat4 transform = glm::translate(base, glm::vec3(side, legLength, 0.0f));
+        transform = glm::rotate(transform, angle, glm::vec3(1.0f, 0.0f, 0.0f));
+        transform = glm::translate(transform, glm::vec3(0.0f, -legLength * 0.5f, 0.0f));
+        part(transform, glm::vec3(0.22f, legLength, 0.24f), glm::vec3(0.15f, 0.17f, 0.30f));
+    };
+    leg(-0.18f, player.grounded ? stride : 0.3f);
+    leg(0.18f, player.grounded ? -stride : 0.3f);
+    part(glm::translate(base, glm::vec3(0.0f, (legLength + torsoTop) * 0.5f, 0.0f)),
+        glm::vec3(0.6f, torsoTop - legLength, 0.36f), glm::vec3(0.20f, 0.35f, 0.85f));
+    part(glm::translate(base, glm::vec3(0.0f, (torsoTop + Player::height) * 0.5f, 0.0f)),
+        glm::vec3(0.3f, Player::height - torsoTop, 0.3f), glm::vec3(0.97f, 0.80f, 0.65f));
     glUseProgram(obstacleProgram);
     matrix(obstacleProgram, "uViewProjection", projection * view);
     vector(obstacleProgram, "uEye", camera.eye);
