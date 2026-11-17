@@ -96,9 +96,12 @@ std::size_t Obstacles::drawCalls(bool instanced) const {
 std::size_t Obstacles::draw(GLuint program, bool instanced) const {
     glUniform1i(glGetUniformLocation(program,"uInstanced"),instanced?1:0);
     const GLint modelLocation = glGetUniformLocation(program,"uModel");
+    const GLint typeLocation = glGetUniformLocation(program,"uType");
     std::size_t calls = 0;
-    for (const Batch& batch : batches_) {
+    for (std::size_t t = 0; t < batches_.size(); ++t) {
+        const Batch& batch = batches_[t];
         if (batch.instances.empty()) continue;
+        glUniform1i(typeLocation,static_cast<GLint>(t));
         glBindVertexArray(batch.vao);
         if (instanced) {
             glDrawElementsInstanced(GL_TRIANGLES,36,GL_UNSIGNED_INT,nullptr,static_cast<GLsizei>(batch.instances.size()));

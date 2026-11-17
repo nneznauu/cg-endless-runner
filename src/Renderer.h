@@ -30,6 +30,7 @@ private:
     GLuint obstacleProgram = 0;
     runner::Obstacles obstacles;
     std::size_t obstacleCalls = 0;
+    bool obstaclePatterns = true;
     GLuint terrainVao = 0, terrainVbo = 0, terrainEbo = 0, heightTexture = 0;
     GLuint playerVao = 0, playerVbo = 0, playerEbo = 0;
     GLuint hudVao = 0, hudVbo = 0;

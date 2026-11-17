@@ -10,6 +10,8 @@ out vec3 vWorld;
 out vec3 vNormal;
 out vec3 vLocal;
 out vec3 vColor;
+out vec3 vScale;
+out vec3 vLocalNormal;
 void main() {
     mat4 model = uInstanced ? aInstanceModel : uModel;
     vec4 world = model * vec4(aPosition, 1.0);
@@ -17,5 +19,7 @@ void main() {
     vNormal = transpose(inverse(mat3(model))) * aNormal;
     vLocal = aPosition;
     vColor = aInstanceColor;
+    vScale = vec3(length(model[0].xyz), length(model[1].xyz), length(model[2].xyz));
+    vLocalNormal = aNormal;
     gl_Position = uViewProjection * world;
 }

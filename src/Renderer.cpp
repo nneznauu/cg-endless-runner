@@ -272,6 +272,7 @@ void Renderer::draw(int width, int height, const Camera& camera, const Player& p
     matrix(obstacleProgram, "uViewProjection", projection * view);
     vector(obstacleProgram, "uEye", camera.eye);
     vector(obstacleProgram, "uLightDirection", light);
+    glUniform1i(glGetUniformLocation(obstacleProgram, "uPatterns"), obstaclePatterns ? 1 : 0);
     obstacleCalls = showObstacles ? obstacles.draw(obstacleProgram, instanced) : 0;
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     if (!hud.empty() || !banner.empty()) drawText(width, height, hud, banner);
@@ -314,6 +315,7 @@ void Renderer::drawText(int width, int height, const std::vector<std::string>& l
 }
 
 void Renderer::updateObstacles(const runner::Game& game, const HeightField& terrain, bool displaced) {
+    obstaclePatterns = !game.stress();
     std::vector<runner::Obstacle> visible;
     for (const auto& o : game.obstacles()) {
         if (runner::Game::onTerrain(o)) visible.push_back(o);
