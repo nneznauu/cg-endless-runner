@@ -9,6 +9,14 @@
 | CMake, Ninja | Build tooling | https://cmake.org/licensing/ ; https://github.com/ninja-build/ninja/blob/master/COPYING |
 | python-docx, Pillow, Graphviz | DOCX generation, screenshot conversion, architecture diagram; not game dependencies | https://python-docx.readthedocs.io/ ; https://pillow.readthedocs.io/ ; https://graphviz.org/license/ |
 
-Dependencies are installed externally, not vendored in this repository. Preserve their licence notices if distributing generated headers or binaries. No third-party models, textures or font images are included. Terrain height data, cube vertices, markings and bitmap glyphs are produced by project code. `docs/images/stage1-integrated.png` is captured from the current build. The older `daniyar-instancing.png`, architecture image and standalone report preserve historical evidence of the previous GLFW/GLEW prototype, whose libraries are no longer used by the integrated application.
+The original Visual Studio setup used external dependencies; the final CMake path below includes the generated GLAD loader and fetches the remaining libraries. Preserve their licence notices if distributing generated headers or binaries. No third-party models, textures or font images are included. Terrain height data, cube vertices, markings and bitmap glyphs are produced by project code. `docs/images/stage1-integrated.png` is a historical Stage 1 capture. The older `daniyar-instancing.png`, architecture image and standalone report preserve historical evidence of the previous GLFW/GLEW prototype, whose libraries are no longer used by the integrated application.
 
-OpenAI Codex substantially assisted the initial C++/GLSL implementation, tests, documentation and report draft. This is disclosed rather than attributed as unaided student work. The students must review, understand and adapt it and describe their actual contributions in the submitted report.
+
+## Final CMake build
+
+The final build includes the generated GLAD 1 loader and its notices in `third_party/glad`; see `ORIGIN.md` there for the generator command and source commit. GLM 1.0.1 and FreeGLUT 3.4.0 are fetched from their official repositories at the exact commits and SHA-256 hashes in `cmake/RunnerDependencies.cmake`. They are build dependencies, not student-authored code. FreeGLUT is linked statically. The Windows helper copies all three licence notices next to the executable.
+
+Original sources:
+- https://github.com/Dav1dde/glad/tree/1ecd45775d96f35170458e6b148eb0708967e402
+- https://github.com/g-truc/glm/tree/0af55ccecd98d4e5a8d1fad7de25ba429d60e863
+- https://github.com/freeglut/freeglut/tree/63c0e78d84ecbfcf8accd8bac04404427899053b

@@ -3,7 +3,7 @@
 **Topic 4: Endless runner with instanced obstacles and a height-map ground.**
 Astana IT University, Computer Graphics Fundamentals, 2026–2027.
 
-Team: **Mukhamejan Abdikerim / Мухамеджан + Daniyar / Данияр** (confirm Daniyar's full name and group before submission).
+Team: **Mukhamejan Abdikerim and Daniyar Azizayev, IT-2511.**
 
 The teammate's complete `b461826` revision is integrated with Daniyar's obstacle module in one application. The canonical layout is **`src/` + `shaders/`**. There is one `main.cpp`, one FreeGLUT window and one GLAD loader. The earlier standalone GLFW/GLEW harness is no longer part of the build.
 
@@ -15,7 +15,25 @@ Implemented: a real height texture sampled in the terrain vertex shader; endless
 
 Gameplay is complete: the game starts in Ready, collisions with obstacles end the run with a Game Over screen, Enter or R restarts immediately, and the best distance is kept for the session. Collision boxes follow the terrain height and a jump that clears an obstacle does not collide. Speed grows smoothly from 8 to 22 m/s, independent of frame rate. The HUD shows state, score, best, speed, FPS, technique toggles, visible obstacles and draw calls.
 
-## Windows 10/11 — the teammate's existing setup
+## Windows 10/11 — reproducible final build
+
+Install Visual Studio 2022 with Desktop development with C++, Windows SDK and C++ CMake tools for Windows. From a clean clone, run:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-windows.ps1 -Verify -Run
+```
+
+The script builds Release x64 with bundled GLAD and hash-verified GLM/FreeGLUT source downloads, runs the CPU tests and OpenGL checks, then opens the game. FreeGLUT is linked statically. The output is `build/windows/bin/Release/EndlessRunner.exe`, with shaders and licence notices beside it. The first configure needs Internet access. [Complete Windows guide and performance capture](docs/WINDOWS_BUILD_RU.md).
+
+For the final performance table:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-windows.ps1 -Verify -Benchmark
+```
+
+Results include raw ON/OFF repetitions, a median-time CSV, GPU/driver information and a Markdown table in a new `artifacts/performance-*` folder. These are fixed-scene render timings; verify normal gameplay FPS separately on the lab PC. Native Windows execution of this new build path still requires validation on the target PC.
+
+## Windows 10/11 — existing Visual Studio setup
 
 Use Visual Studio 2022 / MSVC v143, C++17, Windows SDK, FreeGLUT x64, GLAD 1 and GLM. The original `Dependencies.props` paths are preserved. Adjust them for your PC or put matching libraries under `external` as described in that file.
 
@@ -58,7 +76,7 @@ The game starts in **Ready**: the world stands still until Space or Enter is pre
 | P | Pause/resume player, ground phase, obstacles and distance together (Running/Paused only) |
 | R | Reset player, obstacle pool, distance, phase and speed; Ready and Paused are kept, Running and Game Over start a new run |
 | T | Height-map displacement ON/OFF, including player and obstacle ground placement |
-| I | Instancing ON: one draw per obstacle type (3) / OFF: one draw for each submitted obstacle |
+| I | Instancing ON: one draw per visible obstacle type / OFF: one draw per submitted obstacle |
 | C | Follow/orbit camera |
 | Arrows / mouse wheel | Orbit / zoom in orbit mode |
 | J / L | Rotate light |
@@ -81,9 +99,9 @@ bash scripts/cloud-run.sh --benchmark
 
 The rootless setup uses `/workspace/.runner-tools`, signed Debian packages and reproducible GLAD generation. `cloud-run.sh` starts and cleans up a private Xvfb display if needed and uses software Mesa. Existing checkouts are already isolated; do not create a Git worktree unless explicitly requested. Live display/application processes must be restarted in a new task.
 
-Desktop equivalents use `./build/endless_runner --smoke-test` or `--benchmark`. The smoke test exercises the real input-action handlers and terrain shader, compares instancing ON/OFF, checks CPU/GPU heights through transform feedback, and verifies jump/landing, pause/reset, toggles, phase wrapping and resize. CTest has **2 tests, 405 assertions**. [Current validation evidence](docs/STAGE1_INTEGRATED_VALIDATION.md).
+Desktop equivalents use `./build/endless_runner --smoke-test` or `--benchmark`. The smoke test exercises the real input-action handlers and terrain shader, compares instancing ON/OFF, checks CPU/GPU heights through transform feedback, and verifies jump/landing, pause/reset, toggles, phase wrapping and resize. CTest currently has **2 tests, 497 assertions**. [Current validation evidence](docs/FINAL_BUILD_VALIDATION.md).
 
-The benchmark reports completed render-frame wall times for a fixed scene; no update, instance upload, HUD or buffer swap is timed. It is not a lab-GPU certification. `--instances N` changes pool capacity; terrain-range culling means increasing the pool does not make all instances visible.
+The benchmark reports completed render-frame wall times for a fixed stress scene; no update, instance upload, HUD or buffer swap is timed. It is not a lab-GPU certification. `--instances N` selects N submitted stress instances. The PowerShell measurement helper defaults to 1000 instances and three ON/OFF repetitions; use `-Instances N` to change the count.
 
 ## Modules and documents
 

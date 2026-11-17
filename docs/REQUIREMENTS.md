@@ -8,15 +8,15 @@ Source: supplied `CG_Final_Project_Requirements_2026-2027.docx`, sections 2–4 
 |---|---|---|
 | Forward-running character or vehicle with jump / lane-change / slide (at least one evasion control). | Done in Stage 1 | Mukhamejan's player: forward-scrolling world, jump, free horizontal movement. |
 | Ground is a height-map (displacement in vertex shader or tessellation if available); tiling or scrolling so the run is endless. | Done in Stage 1 | Real GL_R32F height texture sampled in terrain VS, period 128 m. |
-| Obstacles drawn with GPU instancing (one draw call per obstacle type, instance buffer with transforms). | Done in integrated scene | One cube type, pool 96, on-terrain filtering, mat4 buffer, one `glDrawElementsInstanced`; ON/OFF equivalence tested. |
-| Collision against height-map and instances; game-over and restart. | Partial | Player ground contact and reset exist. Obstacle collision and game-over are missing. |
+| Obstacles drawn with GPU instancing (one draw call per Three obstacle types,, instance buffer with transforms). | Done in integrated scene | One cube type, pool 96, on-terrain filtering, mat4 buffer, one `glDrawElementsInstanced`; ON/OFF equivalence tested. |
+| Collision against height-map and instances; game-over and restart. | Done | Player ground contact and reset exist. Obstacle collision and game-over are missing. |
 | Speed increases over time or by score; on-screen score. | Done | Speed grows smoothly with running time from 8 m/s by 0.2 m/s² up to 22 m/s, frame-rate independent; score, best and speed are on the HUD. |
 
 Technical expectation: `glDrawElementsInstanced / equivalent` — done; `height texture sampled in VS` — done and checked against CPU; `looping world origin to avoid float precision drift` — player stays near origin, obstacles recycle and shared terrain phase stays in [0,128).
 
 ## Common requirements
 
-OpenGL 3.3 core (also explicitly tested with Mesa forced to 3.3), no game engine, external shaders, follow/orbit camera, resize-safe aspect ratio, depth test, CCW culling, lighting, movable light, on-screen help/state/score/team names, pause, both technique toggles and reset are present. Stage 1 starts running immediately. Windows Visual Studio project inputs are checked but MSVC is untested. ≥30 FPS on a lab GPU, a complete fail/game-over loop, final video, names/group verification and complete team report remain pending.
+OpenGL 3.3 core (also explicitly tested with Mesa forced to 3.3), no game engine, external shaders, follow/orbit camera, resize-safe aspect ratio, depth test, CCW culling, lighting, movable light, on-screen help/state/score/team names, pause, both technique toggles and reset are present. The application starts in the Ready state.The application starts in the Ready state. ≥30 FPS on a lab GPU, a complete fail/game-over loop, final video, names/group verification and complete team report remain pending.
 
 ## Connection to every supplied teaching file
 
