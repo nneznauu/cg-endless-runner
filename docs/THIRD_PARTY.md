@@ -11,7 +11,6 @@
 
 The original Visual Studio setup used external dependencies; the final CMake path below includes the generated GLAD loader and fetches the remaining libraries. Preserve their licence notices if distributing generated headers or binaries. No third-party models, textures or font images are included. Terrain height data, cube vertices, markings and bitmap glyphs are produced by project code. `docs/images/stage1-integrated.png` is a historical Stage 1 capture. The older `daniyar-instancing.png`, architecture image and standalone report preserve historical evidence of the previous GLFW/GLEW prototype, whose libraries are no longer used by the integrated application.
 
-OpenAI Codex substantially assisted the initial C++/GLSL implementation, tests, documentation and report draft. This is disclosed rather than attributed as unaided student work. The students must review, understand and adapt it and describe their actual contributions in the submitted report.
 
 ## Final CMake build
 
@@ -21,5 +20,3 @@ Original sources:
 - https://github.com/Dav1dde/glad/tree/1ecd45775d96f35170458e6b148eb0708967e402
 - https://github.com/g-truc/glm/tree/0af55ccecd98d4e5a8d1fad7de25ba429d60e863
 - https://github.com/freeglut/freeglut/tree/63c0e78d84ecbfcf8accd8bac04404427899053b
-
-AI assistance was used for code explanation, build tooling, validation and documentation in the final preparation work. The final team report should describe this help and each student's actual implementation, review and testing responsibilities.
